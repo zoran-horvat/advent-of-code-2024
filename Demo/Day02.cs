@@ -31,5 +31,5 @@ static class Day02
         values.Take(index).Concat(values.Skip(index + 1)).ToList();
 
     private static List<List<int>> LoadLists(this TextReader text) =>
-        text.GetAllLines().Select(Common.ParseInts).ToList();
+        text.GetAllLines().Select(Common.ParseIntsNoSign).ToList();
 }

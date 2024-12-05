@@ -18,5 +18,5 @@ static class Day01
     }
 
     private static (List<int> a, List<int> b) LoadLists(this TextReader text) =>
-        text.GetAllLines().Select(Common.ParseInts).Transpose().ToPair();
+        text.GetAllLines().Select(Common.ParseIntsNoSign).Transpose().ToPair();
 }

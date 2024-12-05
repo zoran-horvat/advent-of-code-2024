@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 static class Common
 {
     public static (T a, T b) ToPair<T>(this List<T> list) => list switch
@@ -20,8 +22,8 @@ static class Common
                 return acc;
             });
 
-    public static List<int> ParseInts(this string line) =>
-        line.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToList();
+    public static List<int> ParseIntsNoSign(this string line) =>
+        Regex.Matches(line, @"\d+").Select(match => int.Parse(match.Value)).ToList();
 
     public static IEnumerable<string> GetAllLines(this TextReader reader)
     {

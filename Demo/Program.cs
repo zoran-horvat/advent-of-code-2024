@@ -1,4 +1,7 @@
-﻿Action[] problemSolutions = [Day01.Run, Day02.Run, Day03.Run, Day04.Run];
+﻿Action[] problemSolutions =
+[
+    Day01.Run, Day02.Run, Day03.Run, Day04.Run, Day05.Run
+];
 
 foreach (int index in ProblemIndices())
 {
@@ -8,7 +11,7 @@ foreach (int index in ProblemIndices())
 
 IEnumerable<int> ProblemIndices()
 {
-    string prompt = $"{Environment.NewLine}Enter the problem number [1-{problemSolutions.Length}] (ENTER to quit): ";
+    string prompt = $"{Environment.NewLine}Enter the day number [1-{problemSolutions.Length}] (ENTER to quit): ";
     Console.Write(prompt);
     while (true)
     {
