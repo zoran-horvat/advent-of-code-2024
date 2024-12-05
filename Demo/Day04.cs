@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-static class Problem04
+static class Day04
 {
     public static void Run()
     {

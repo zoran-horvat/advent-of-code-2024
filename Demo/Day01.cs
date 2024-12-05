@@ -1,4 +1,4 @@
-static class Problem01
+static class Day01
 {
     public static void Run()
     {

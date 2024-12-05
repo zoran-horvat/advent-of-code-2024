@@ -1,4 +1,4 @@
-﻿Action[] problemSolutions = [Problem01.Run, Problem02.Run, Problem03.Run, Problem04.Run];
+﻿Action[] problemSolutions = [Day01.Run, Day02.Run, Day03.Run, Day04.Run];
 
 foreach (int index in ProblemIndices())
 {
