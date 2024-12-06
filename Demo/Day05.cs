@@ -21,7 +21,7 @@ static class Day05
     }
 
     private static IEnumerable<(int before, int after)> ReadSortOrder(this TextReader text) =>
-        text.GetAllLines().TakeWhile(line => !string.IsNullOrWhiteSpace(line)).Select(ToSortOrder);
+        text.ReadLines().TakeWhile(line => !string.IsNullOrWhiteSpace(line)).Select(ToSortOrder);
 
     private static (int before, int after) ToSortOrder(this string line)
     {
@@ -30,7 +30,7 @@ static class Day05
     }
 
     private static IEnumerable<List<int>> ReadPrintedPages(this TextReader text) =>
-        text.GetAllLines().Select(Common.ParseIntsNoSign);
+        text.ReadLines().Select(Common.ParseIntsNoSign);
     
     private static bool IsInCorrectOrder(this List<int> pages, HashSet<(int before, int after)> forbiddenSorts) =>
         pages.ExpandPageSortOrder().All(pair => !forbiddenSorts.Contains(pair));

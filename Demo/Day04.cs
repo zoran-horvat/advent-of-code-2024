@@ -4,7 +4,7 @@ static class Day04
 {
     public static void Run()
     {
-        var matrix = Console.In.GetAllLines().ToList();
+        var matrix = Console.In.ReadLines().ToList();
         int rows = matrix.Count;
         int cols = matrix[0].Length;
 

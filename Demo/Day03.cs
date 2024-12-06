@@ -4,7 +4,7 @@ static class Day03
 {
     public static void Run()
     {
-        var instructions = Console.In.GetAllLines().SelectMany(Parse).ToList();
+        var instructions = Console.In.ReadLines().SelectMany(Parse).ToList();
 
         int sum = instructions.OfType<Multiply>().Sum(instruction => instruction.Product);
         int sumWithExclusions = instructions.WithExclusions().Sum(instruction => instruction.Product);
