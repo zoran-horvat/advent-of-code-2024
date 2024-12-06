@@ -7,14 +7,26 @@ static class Day02
         int safeCount = values.Count(IsSafe);
         int tolerantSafeCount = values.Count(list => list.IsSafe() || list.IsSafeWithOneLess());
 
-        Console.WriteLine($"Total count: {values.Count}");
-        Console.WriteLine($"Safe count: {safeCount}");
+        Console.WriteLine($"        Total count: {values.Count}");
+        Console.WriteLine($"         Safe count: {safeCount}");
         Console.WriteLine($"Tolerant safe count: {tolerantSafeCount}");
     }
 
     private static bool IsSafe(this List<int> values) =>
-        values.Zip(values.Skip(1), (x, y) => (x, y))
-            .All(pair => pair.IsSafe(Math.Sign(values[1] - values[0])));
+        values.ToPairs().All(pair => pair.IsSafe(Math.Sign(values[1] - values[0])));
+
+    private static IEnumerable<(int prev, int next)> ToPairs(this List<int> values)
+    {
+        using var enumerator = values.GetEnumerator();
+        if (!enumerator.MoveNext()) yield break;
+
+        int prev = enumerator.Current;
+        while (enumerator.MoveNext())
+        {
+            yield return (prev, enumerator.Current);
+            prev = enumerator.Current;
+        }
+    }
 
     private static bool IsSafe(this (int a, int b) pair, int sign) =>
         Math.Abs(pair.b - pair.a) >= 1 &&
