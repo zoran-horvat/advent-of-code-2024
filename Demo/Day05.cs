@@ -2,23 +2,42 @@ static class Day05
 {
     public static void Run()
     {
-        var forbiddenSorts = Console.In.ReadSortOrder()
-            .Select(pair => (before: pair.after, after: pair.before))
-            .ToHashSet();
+        var sortOrder = Console.In.ReadSortOrder().ToHashSet();
+        IComparer<int> comparer = Comparer<int>.Create((a, b) => 
+            sortOrder.Contains((a, b)) ? -1
+            : sortOrder.Contains((b, a)) ? 1
+            : 0);
 
         List<List<int>> allPrints = Console.In.ReadPrintedPages().ToList();
 
         var middlePagesSum = allPrints
-            .Where(pages => pages.IsInCorrectOrder(forbiddenSorts))
+            .Where(pages => pages.IsSorted(comparer))
             .Sum(pages => pages.MiddlePage());
 
         var correctedMiddlePagesSum = allPrints
-            .Where(pages => !pages.IsInCorrectOrder(forbiddenSorts))
-            .Sum(pages => pages.FixSortOrder(forbiddenSorts).ToList().MiddlePage());
+            .Where(pages => !pages.IsSorted(comparer))
+            .Sum(pages => pages.Order(comparer).MiddlePage());
 
         Console.WriteLine($"          Middle pages sum: {middlePagesSum}");
         Console.WriteLine($"Corrected middle pages sum: {correctedMiddlePagesSum}");
     }
+    
+    private static int MiddlePage(this List<int> pages) =>
+        pages[pages.Count / 2];
+
+    private static int MiddlePage(this IEnumerable<int> pages)
+    {
+        using var half = pages.GetEnumerator();
+        using var full = pages.GetEnumerator();
+
+        while (full.MoveNext() && half.MoveNext() && full.MoveNext()) { }
+
+        return half.Current;
+    }
+
+    private static bool IsSorted(this List<int> pages, IComparer<int> comparer) =>
+        pages.SelectMany((prev, index) => pages[(index + 1)..].Select(next => (prev, next)))
+            .All(pair => comparer.Compare(pair.prev, pair.next) <= 0);
 
     private static IEnumerable<(int before, int after)> ReadSortOrder(this TextReader text) =>
         text.ReadLines().TakeWhile(line => !string.IsNullOrWhiteSpace(line)).Select(ToSortOrder);
@@ -31,33 +50,4 @@ static class Day05
 
     private static IEnumerable<List<int>> ReadPrintedPages(this TextReader text) =>
         text.ReadLines().Select(Common.ParseIntsNoSign);
-    
-    private static bool IsInCorrectOrder(this List<int> pages, HashSet<(int before, int after)> forbiddenSorts) =>
-        pages.ExpandPageSortOrder().All(pair => !forbiddenSorts.Contains(pair));
-
-    private static IEnumerable<(int before, int after)> ExpandPageSortOrder(this List<int> pages) =>
-        pages.SelectMany((page, index) => pages.ExpandPageSortOrder(index));
-
-    private static IEnumerable<(int before, int after)> ExpandPageSortOrder(this List<int> pages, int index) =>
-        pages.Skip(index + 1).Select(page => (before: pages[index], after: page));
-
-    private static int MiddlePage(this List<int> pages) =>
-        pages[pages.Count / 2];
-
-    private static IEnumerable<int> FixSortOrder(this List<int> pages, HashSet<(int before, int after)> forbiddenSorts)
-    {
-        var pending = pages.ToList();
-        while (pending.Any())
-        {
-            int next = pending.GetCandidatesForNext(forbiddenSorts).First();    // Should never fail
-            pending.Remove(next);
-            yield return next;
-        }
-    }
-
-    private static IEnumerable<int> GetCandidatesForNext(this List<int> pages, HashSet<(int before, int after)> forbiddenSorts) =>
-        pages.Where(page => pages.ExpandFullPageSortOrder(page).All(pair => !forbiddenSorts.Contains(pair))); 
-
-    private static IEnumerable<(int before, int after)> ExpandFullPageSortOrder(this List<int> pages, int before) =>
-        pages.Where(cur => cur != before).Select(other => (before: before, after: other));
 }
