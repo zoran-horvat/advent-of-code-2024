@@ -9,15 +9,15 @@ static class Day03
         int sum = instructions.OfType<Multiply>().Evaluate();
         int sumWithExclusions = instructions.Evaluate();
 
-        Console.WriteLine($"Sum: {sum}");
+        Console.WriteLine($"                Sum: {sum}");
         Console.WriteLine($"Sum with exclusions: {sumWithExclusions}");
     }
 
     private static IEnumerable<Instruction> Parse(this string line) =>
-        Regex.Matches(line, @"(?<mul>mul)\((?<a>\d+),(?<b>\d+)\)|(?<do>do(n't)?)\(\)")
+        Regex.Matches(line, @"(?<mul>mul)\((?<a>\d+),(?<b>\d+)\)|(?<dont>don't)\(\)|(?<do>do)\(\)")
             .Select(match => 
-                match.Groups["do"].Success && match.Groups["do"].Value == "do" ? new Continue() as Instruction
-                : match.Groups["do"].Success && match.Groups["do"].Value == "don't" ? new Stop()
+                match.Groups["dont"].Success ? new Stop() as Instruction
+                : match.Groups["do"].Success ? new Continue()
                 : new Multiply(int.Parse(match.Groups["a"].Value), int.Parse(match.Groups["b"].Value)));
 
     private static int Evaluate(this IEnumerable<Instruction> instructions) => instructions.Aggregate(
