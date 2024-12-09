@@ -4,94 +4,64 @@ static class Day09
     {
         var disk = Console.In.ReadDisk().ToArray();
 
-        long checksum = disk.Compact().Sum(fragment => fragment.Checksum);
-        long entireFilesChecksum = disk.CompactEntireFiles().Sum(fragment => fragment.Checksum);
+        long checksum = disk.Compact(MoveBlocks).Sum(file => file.Checksum);
+        long filesMoveChecksum = disk.Compact(MoveFiles).Sum(file => file.Checksum);
 
         Console.WriteLine($"             Checksum: {checksum}");
-        Console.WriteLine($"Entire files checksum: {entireFilesChecksum}");
+        Console.WriteLine($"Moving files checksum: {filesMoveChecksum}");
     }
 
-    private static IEnumerable<Fragment> CompactEntireFiles(this IEnumerable<Fragment> files)
+    private static IEnumerable<FileSection> Compact(this IEnumerable<Fragment> fragments, BlocksConstraint blocksConstraint)
     {
-        List<Gap> gaps = files.Gaps().ToList();
+        var files = fragments.OfType<FileSection>().OrderByDescending(file => file.Position);
+        var gaps = fragments.OfType<Gap>().OrderBy(gap => gap.Position).ToList();
 
-        foreach (Fragment file in files.Reverse())
+        foreach (FileSection file in files)
         {
-            var moveTo = gaps
-                .Where(gap => gap.Position < file.Position && gap.Length >= file.Length)
-                .OrderBy(gap => gap.Position)
-                .Take(1)
-                .ToList();
+            var remainingGaps = new List<Gap>();
+            int pendingBlocks = file.Length;
 
-            if (moveTo.Count == 0)
+            foreach (var gap in gaps.Where(gap => gap.Position < file.Position))
             {
-                yield return file;
-                continue;
+                int move = Math.Min(pendingBlocks, gap.Length);
+
+                if (move < blocksConstraint(file))
+                {
+                    remainingGaps.Add(gap);
+                    continue;
+                }
+
+                if (move > 0) yield return file with { Position = gap.Position, Length = move };
+                pendingBlocks -= move;
+
+                if (gap.Remove(move) is Gap remainder) remainingGaps.Add(remainder);
             }
 
-            yield return file with { Position = moveTo[0].Position };
-
-            var gap = moveTo[0];
-            gaps.Remove(gap);
-
-            if (gap.Length > file.Length)
-            {
-                gaps.Add(new Gap(gap.Position + file.Length, gap.Length - file.Length));
-            }
+            if (pendingBlocks > 0) yield return file with { Length = pendingBlocks };
+            gaps = remainingGaps;
         }
     }
 
-    private static IEnumerable<Gap> Gaps(this IEnumerable<Fragment> fragments)
-    {
-        int position = 0;
-        foreach (Fragment fragment in fragments)
-        {
-            if (fragment.Position > position) yield return new Gap(position, fragment.Position - position);
-            position = fragment.Position + fragment.Length;
-        }
-    }
+    private static int MoveBlocks(FileSection file) => 0;
 
-    private static IEnumerable<Fragment> Compact(this IEnumerable<Fragment> files)
-    {
-        List<Fragment> disk = files.ToList();
-        int compactedUntil = 0;
-        int currentFile = 0;
+    private static int MoveFiles(FileSection file) => file.Length;
 
-        while (currentFile < disk.Count)
-        {
-            int gap = disk[currentFile].Position - compactedUntil;
-            if (gap == 0)
-            {
-                compactedUntil += disk[currentFile].Length;
-                yield return disk[currentFile];
-                currentFile += 1;
-            }
-            else if (gap >= disk[^1].Length)
-            {
-                yield return disk[^1] with { Position = compactedUntil };
-                compactedUntil += disk[^1].Length;
-                disk.RemoveAt(disk.Count - 1);
-            }
-            else    // gap < disk[^1].Length
-            {
-                yield return new Fragment(disk[^1].FileId, compactedUntil, gap);
-                compactedUntil += gap;
-                disk[^1] = disk[^1] with { Length = disk[^1].Length - gap};
-            }
-        }
-    }
+    delegate int BlocksConstraint(FileSection file);
 
     private static IEnumerable<Fragment> ReadDisk(this TextReader text)
     {
         int position = 0;
         foreach ((int? fileId, int blocks) in text.ReadSpec())
         {
-            if (fileId.HasValue) yield return new Fragment(fileId.Value, position, blocks);
+            if (fileId.HasValue) yield return new FileSection(fileId.Value, position, blocks);
+            else yield return new Gap(position, blocks);
             position += blocks;
         }
     }
 
-    record Fragment(int FileId, int Position, int Length)
+    abstract record Fragment(int Position, int Length);
+
+    record FileSection(int FileId, int Position, int Length) : Fragment(Position, Length)
     {
         // pos               + (pos + 1)         + ... + (pos + len - 1)
         // (pos + len - 1)   + (pos + len - 2)   + ... + pos
@@ -102,7 +72,11 @@ static class Day09
         public long Checksum => (long)FileId * Length * (2 * Position + Length - 1) / 2;
     }
 
-    record Gap(int Position, int Length);
+    record Gap(int Position, int Length) : Fragment(Position, Length)
+    {
+        public Gap? Remove(int blocks) =>
+            blocks >= Length ? null : new Gap(Position + blocks, Length - blocks);
+    }
 
     private static IEnumerable<(int? fileId, int blocks)> ReadSpec(this TextReader text) =>
         (text.ReadLine() ?? string.Empty)
