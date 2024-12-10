@@ -20,22 +20,30 @@ static class Day10
 
     private static IEnumerable<((int row, int col) point, int count)> Walk(this char[][] map, (int row, int col) start)
     {
-        var pointToCount = new Dictionary<(int row, int col), int>();
-        var queue = new Queue<((int row, int col) point, int count)>();
+        var pointToCount = new Dictionary<(int row, int col), int>() { [start] = 1 };
+        var queue = new Queue<(int row, int col)>();
 
-        queue.Enqueue((start, 1));
+        queue.Enqueue(start);
 
         while (queue.Count > 0)
         {
-            var (point, count) = queue.Dequeue();
+            var current = queue.Dequeue();
 
-            if (!pointToCount.TryGetValue(point, out int priorCount)) priorCount = 0;
-            pointToCount[point] = priorCount + count;
+            yield return (current, pointToCount[current]);
 
-            foreach (var neighbor in map.GetUphillNeighbors(point)) queue.Enqueue((neighbor, count));
+            foreach (var neighbor in map.GetUphillNeighbors(current))
+            {
+                if (pointToCount.ContainsKey(neighbor))
+                {
+                    pointToCount[neighbor] += pointToCount[current];
+                }
+                else
+                {
+                    pointToCount[neighbor] = pointToCount[current];
+                    queue.Enqueue(neighbor);
+                }
+            }
         }
-
-        return pointToCount.Select(keyValue => (keyValue.Key, keyValue.Value));
     }
 
     private static IEnumerable<(int row, int col)> GetUphillNeighbors(this char[][] map, (int row, int col) point) =>
