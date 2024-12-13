@@ -1,5 +1,3 @@
-using System.Data;
-
 static class Day12
 {
     public static void Run()
