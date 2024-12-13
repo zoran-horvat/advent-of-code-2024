@@ -57,12 +57,12 @@ static class Day13
             }
             else
             {
-                for (long bStep = Math.Min(Prize.x / B.x, Prize.y / B.y); bStep >= 0; bStep--)
+                for (long bSteps = Math.Min(Prize.x / B.x, Prize.y / B.y); bSteps >= 0; bSteps--)
                 {
-                    long aStep = (Prize.x - bStep * B.x) / A.x;
-                    if (IsSolution(aStep, bStep))
+                    long aSteps = (Prize.x - bSteps * B.x) / A.x;
+                    if (IsSolution(aSteps, bSteps))
                     {
-                        yield return (aStep, bStep, aStep * 3 + bStep);
+                        yield return (aSteps, bSteps, aSteps * 3 + bSteps);
                         yield break;
                     }
                 }
