@@ -6,74 +6,72 @@ static class Day13
 
         long totalCost = machines
             .SelectMany(machine => machine.CheapestPlay())
-            .Sum(play => play.cost);
+            .Sum();
 
         long farCost = machines
-            .Select(machine => machine.GetCorrectedMachine())
+            .Select(machine => machine.ToCorrectedMachine())
             .SelectMany(machine => machine.CheapestPlay())
-            .Sum(play => play.cost);
+            .Sum();
 
         Console.WriteLine($"Total cost: {totalCost}");
         Console.WriteLine($"  Far cost: {farCost}");
     }
 
-    private static IEnumerable<Machine> ReadMachines(this TextReader text)
+    private static IEnumerable<long> CheapestPlay(this Machine machine)
     {
-        var lines = text.ReadLines().ToList();
-        for (int i = 0; i < lines.Count; i += 4)
-        {
-            var buttonA = lines[i].ParseLongsNoSign().ToPair();
-            var buttonB = lines[i + 1].ParseLongsNoSign().ToPair();
-            var prize = lines[i + 2].ParseLongsNoSign().ToPair();
+        var (a, b, prize) = machine;
 
-            yield return new Machine { A = buttonA, B = buttonB, Prize = prize };
+        long determinant = a.X * b.Y - a.Y * b.X;
+
+        if (determinant != 0)
+        {
+            long aSteps = (prize.X * b.Y - prize.Y * b.X) / determinant;
+            long bSteps = b.X == 0 ? 0 : (prize.X - aSteps * a.X) / b.X;
+
+            if (machine.IsSolution(aSteps, bSteps)) yield return aSteps * 3 + bSteps;
         }
-    }
-
-    class Machine
-    {
-        public (long x, long y) A { get; init; }
-        public (long x, long y) B { get; init; }
-        public (long x, long y) Prize { get; init; }
-
-        public IEnumerable<(long pressA, long pressB, long cost)> CheapestPlay()
+        else
         {
-            long discriminant = A.x * B.y - A.y * B.x;
-            if (discriminant != 0)
+            for (long bSteps = Math.Min(prize.X / b.X, prize.Y / b.Y); bSteps >= 0; bSteps--)
             {
-                long aSteps = (Prize.x * B.y - Prize.y * B.x) / discriminant;
-                long bSteps = B.x == 0 ? 0 : (Prize.x - aSteps * A.x) / B.x;
-
-                if (IsSolution(aSteps, bSteps)) yield return (aSteps, bSteps, aSteps * 3 + bSteps);
-            }
-            else if (A.x == 0 || A.y == 0)
-            {
-                if (B.x == 0 || B.y == 0) yield break;
-                if (IsSolution(0, Prize.x / B.x)) yield return (0, Prize.x / B.x, Prize.x / B.x * 3);
-            }
-            else if (B.x == 0 || B.y == 0)
-            {
-                if (IsSolution(Prize.y / A.y, 0)) yield return (Prize.y / A.y, 0, Prize.y / A.y * 3);
-            }
-            else
-            {
-                for (long bSteps = Math.Min(Prize.x / B.x, Prize.y / B.y); bSteps >= 0; bSteps--)
+                long aSteps = (prize.X - bSteps * b.X) / a.X;
+                if (machine.IsSolution(aSteps, bSteps))
                 {
-                    long aSteps = (Prize.x - bSteps * B.x) / A.x;
-                    if (IsSolution(aSteps, bSteps))
-                    {
-                        yield return (aSteps, bSteps, aSteps * 3 + bSteps);
-                        yield break;
-                    }
+                    yield return aSteps * 3 + bSteps;
+                    yield break;
                 }
             }
         }
+    }
 
-        private bool IsSolution(long aSteps, long bSteps) =>
-            aSteps * A.x + bSteps * B.x == Prize.x &&
-            aSteps * A.y + bSteps * B.y == Prize.y;
+    private static Machine ToCorrectedMachine(this Machine machine) =>
+        machine with { Prize = new(
+            machine.Prize.X + 10000000000000,
+            machine.Prize.Y + 10000000000000) };
 
-        public Machine GetCorrectedMachine() =>
-            new() { A = A, B = B, Prize = (Prize.x + 10000000000000, Prize.y + 10000000000000) };
+    private static bool IsSolution(this Machine machine, long aSteps, long bSteps) =>
+        aSteps * machine.A.X + bSteps * machine.B.X == machine.Prize.X &&
+        aSteps * machine.A.Y + bSteps * machine.B.Y == machine.Prize.Y;
+
+    private static IEnumerable<Machine> ReadMachines(this TextReader text)
+    {
+        var elements = new Coordinates[3];
+        int current = 0;
+
+        foreach (string line in text.ReadLines().Where(line => line.Length > 0))
+        {
+            elements[current++] = new(line.ParseLongsNoSign().ToPair());
+            if (current < 3) continue;
+
+            yield return new Machine(elements[0], elements[1], elements[2]);
+            current = 0;
+        }
+    }
+
+    record Machine(Coordinates A, Coordinates B, Coordinates Prize);
+
+    record Coordinates(long X, long Y)
+    {
+        public Coordinates((long x, long y) pair) : this(pair.x, pair.y) { }
     }
 }
