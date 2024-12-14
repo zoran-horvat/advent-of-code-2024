@@ -25,6 +25,9 @@ static class Common
     public static List<int> ParseIntsNoSign(this string line) =>
         Regex.Matches(line, @"\d+").Select(match => int.Parse(match.Value)).ToList();
 
+    public static List<int> ParseInts(this string line) =>
+        Regex.Matches(line, @"-?\d+").Select(match => int.Parse(match.Value)).ToList();
+
     public static List<long> ParseLongsNoSign(this string line) =>
         Regex.Matches(line, @"\d+").Select(match => long.Parse(match.Value)).ToList();
 
