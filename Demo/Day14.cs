@@ -35,9 +35,7 @@ static class Day14
 
     private static IEnumerable<int> GetGroupSizes(this IEnumerable<Robot> robots)
     {
-        var positions = robots.Select(robot => robot.Position).Distinct().ToHashSet();
-
-        var pending = positions.ToHashSet();
+        var pending = robots.Select(robot => robot.Position).Distinct().ToHashSet();
         
         while (pending.Count > 0)
         {
