@@ -100,21 +100,11 @@ static class Day14
     private static IEnumerable<Robot> Move(this IEnumerable<Robot> robots, int time, Coordinates roomSize) =>
         robots.Select(robot => robot.Move(time, roomSize));
 
-    private static Robot Move(this Robot robot, int time, Coordinates roomSize)
-    {
-        var r = robot with
-        {
-            Position = new(
-                    robot.Position.X.Move(robot.Velocity.X, time, roomSize.X),
-                    robot.Position.Y.Move(robot.Velocity.Y, time, roomSize.Y))
-        };
+    private static Robot Move(this Robot robot, int time, Coordinates roomSize) => 
+        robot with { Position = robot.Position.Move(robot.Velocity, time, roomSize) };
 
-        if (r.Position.X < 0 || r.Position.Y < 0)
-        {
-            Console.WriteLine($"{time}: {robot} -> {r} ({-5 % 7})");
-        }
-        return r;
-    }
+    private static Coordinates Move(this Coordinates position, Coordinates velocity, int time, Coordinates roomSize) =>
+        new(position.X.Move(velocity.X, time, roomSize.X), position.Y.Move(velocity.Y, time, roomSize.Y));
 
     private static int Move(this int position, int velocity, int time, int roomSize) =>
         ((position + velocity * time) % roomSize + roomSize) % roomSize;
