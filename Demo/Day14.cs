@@ -7,25 +7,27 @@ static class Day14
         int time = 100;
 
         var safetyFactor = robots.Move(time, roomSize).GetSafetyFactor(roomSize);
-
         Console.WriteLine($"Safety factor: {safetyFactor}");
 
-        int t = 0;
+        foreach (var candidate in robots.GetChristmasTreeCandidates(roomSize))
+        {
+            candidate.state.Print(candidate.time, roomSize);
+            Console.Write($"Keep searching? (y/n) ");
+            if (Console.ReadLine()?.ToLower() == "n") break;
+        }
+    }
+
+    private static IEnumerable<(List<Robot> state, int time)> GetChristmasTreeCandidates(this IEnumerable<Robot> robots, Coordinates roomSize)
+    {
+        int time = 0;
         while (true)
         {
-            if (t == int.MaxValue)
-            {
-                Console.WriteLine("No solution found. Better luck next Easter.");
-                break;
-            }
+            if (time == int.MaxValue) yield break;
+            time += 1;
 
-            t += 1;
-            if (t % 1000 == 0) Console.WriteLine($"Time: {t:#,##0}");
-            if (robots.Move(t, roomSize).MaybeChristmasTree())
+            if (robots.Move(time, roomSize).MaybeChristmasTree())
             {
-                robots.Move(t, roomSize).Print(t, roomSize);
-                Console.Write($"Keep searching? (y/n) ");
-                if (Console.ReadLine()?.ToLower() == "n") break;
+                yield return (robots.Move(time, roomSize).ToList(), time);
             }
         }
     }
