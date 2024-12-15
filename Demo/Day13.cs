@@ -4,54 +4,44 @@ static class Day13
     {
         var machines = Console.In.ReadMachines().ToList();
 
-        long totalCost = machines
-            .SelectMany(machine => machine.CheapestPlay())
-            .Sum();
-
-        long farCost = machines
-            .Select(machine => machine.ToCorrectedMachine())
-            .SelectMany(machine => machine.CheapestPlay())
-            .Sum();
+        long totalCost = machines.SelectMany(GetCheapestPlay).ToCost();
+        long correctedCost = machines.Select(ToCorrectedMachine).SelectMany(GetCheapestPlay).ToCost();
 
         Console.WriteLine($"Total cost: {totalCost}");
-        Console.WriteLine($"  Far cost: {farCost}");
+        Console.WriteLine($"Corrected cost: {correctedCost}");
     }
 
-    private static IEnumerable<long> CheapestPlay(this Machine machine)
+    private static long ToCost(this IEnumerable<(long aPresses, long bPresses)> buttonPresses) =>
+        buttonPresses.Sum(pair => pair.aPresses * 3 + pair.bPresses);
+
+    private static IEnumerable<(long aPresses, long bPresses)> GetCheapestPlay(this Machine machine)
     {
+        // a * ax + b * bx = px
+        // a * ay + b * by = py
+        // --------------------
+        // D = ax * by - ay * bx
+        // a = (px * by - py * bx) / D
+        // b = (ax * py - ay * px) / D
+        
         var (a, b, prize) = machine;
 
         long determinant = a.X * b.Y - a.Y * b.X;
 
-        if (determinant != 0)
-        {
-            long aSteps = (prize.X * b.Y - prize.Y * b.X) / determinant;
-            long bSteps = b.X == 0 ? 0 : (prize.X - aSteps * a.X) / b.X;
+        if (determinant == 0) return Enumerable.Empty<(long, long)>();
 
-            if (machine.IsSolution(aSteps, bSteps)) yield return aSteps * 3 + bSteps;
-        }
-        else
-        {
-            for (long bSteps = Math.Min(prize.X / b.X, prize.Y / b.Y); bSteps >= 0; bSteps--)
-            {
-                long aSteps = (prize.X - bSteps * b.X) / a.X;
-                if (machine.IsSolution(aSteps, bSteps))
-                {
-                    yield return aSteps * 3 + bSteps;
-                    yield break;
-                }
-            }
-        }
+        long aPresses = (prize.X * b.Y - prize.Y * b.X) / determinant;
+        return machine.ToButtonPresses(aPresses);
     }
 
-    private static Machine ToCorrectedMachine(this Machine machine) =>
-        machine with { Prize = new(
-            machine.Prize.X + 10000000000000,
-            machine.Prize.Y + 10000000000000) };
+    private static IEnumerable<(long aPresses, long bPresses)> ToButtonPresses(this Machine machine, long aPresses)
+    {
+        long bPresses = (machine.Prize.X - aPresses * machine.A.X) / machine.B.X;
 
-    private static bool IsSolution(this Machine machine, long aSteps, long bSteps) =>
-        aSteps * machine.A.X + bSteps * machine.B.X == machine.Prize.X &&
-        aSteps * machine.A.Y + bSteps * machine.B.Y == machine.Prize.Y;
+        if (aPresses * machine.A.X + bPresses * machine.B.X != machine.Prize.X) yield break;
+        if (aPresses * machine.A.Y + bPresses * machine.B.Y != machine.Prize.Y) yield break;
+
+        yield return (aPresses, bPresses);
+    }
 
     private static IEnumerable<Machine> ReadMachines(this TextReader text)
     {
@@ -67,6 +57,11 @@ static class Day13
             current = 0;
         }
     }
+
+    private static Machine ToCorrectedMachine(this Machine machine) =>
+        machine with { Prize = new(
+            machine.Prize.X + 10000000000000,
+            machine.Prize.Y + 10000000000000) };
 
     record Machine(Coordinates A, Coordinates B, Coordinates Prize);
 
