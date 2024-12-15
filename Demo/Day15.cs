@@ -1,4 +1,5 @@
 using System.Data;
+using System.Diagnostics;
 
 static class Day15
 {
@@ -7,14 +8,18 @@ static class Day15
         var state = Console.In.ReadMap().ToState();
         var instructions = Console.In.ReadInstructions().ToList();
 
+        Stopwatch sw = Stopwatch.StartNew();
+
         var finalState = state.Simulate(instructions);
-        var finalStateScaled = state.Scaled().Simulate(instructions);
+        var finalStateScaled = state.ScaledUp().Simulate(instructions);
 
         int totalGps = finalState.ToGps();
         int scaledGps = finalStateScaled.ToGps();
+        sw.Stop();
 
         Console.WriteLine($"       Total GPS: {totalGps}");
         Console.WriteLine($"Total scaled GPS: {scaledGps}");
+        Console.WriteLine($"    Completed in: {sw.ElapsedMilliseconds} ms");
 
         Console.Out.Print(finalState.ToMap());
         Console.Out.Print(finalStateScaled.ToMap());
@@ -58,21 +63,33 @@ static class Day15
     private static State Move(this State state, Direction direction)
     {
         var pressingAt = state.Robot.Move(direction);
-
         if (state.Walls.Contains(pressingAt)) return state;
 
-        var boxes = CreateBoxIndex();
-        state.Boxes.ForEach(box => boxes.Add(box));
+        var boxesToPush = state.GetPushingGroup(direction).ToList();
+        if (!boxesToPush.CanMoveAll(direction, state)) return state;
 
-        var boxesToPush = boxes.Pushing(pressingAt, direction).ToList();
+        var boxesToStay = state.Boxes.ToHashSet().Except(boxesToPush);
 
-        if (!boxesToPush.All(box => box.CanMove(direction, state))) return state;
+        return state with
+        {
+            Boxes =  boxesToPush.MoveAll(direction).Concat(boxesToStay).ToArray(),
+            Robot = pressingAt
+        };
 
-        var boxesToStay = boxes.Except(boxesToPush);
+        // Same thing, mutable:
+        // var pressingAt = state.Robot.Move(direction);
+        // if (state.Walls.Contains(pressingAt)) return state;
 
-        var boxesAfterPush = boxesToPush.Select(box => box.Move(direction)).Concat(boxesToStay);
+        // var boxesToPush = state.GetPushingGroup(direction).ToHashSet();
+        // if (!boxesToPush.CanMoveAll(direction, state)) return state;
 
-        return state with { Boxes = boxesAfterPush.ToArray(), Robot = pressingAt };
+        // for (int i = 0; i < state.Boxes.Length; i++)
+        // {
+        //     if (!boxesToPush.Contains(state.Boxes[i])) continue;
+        //     state.Boxes[i] = state.Boxes[i].Move(direction);
+        // }
+
+        // return state with { Robot = pressingAt };
     }
 
     private static IEnumerable<Point> GetRobots(this char[][] map) =>
@@ -81,42 +98,45 @@ static class Day15
         where map[row][col] == '@'
         select new Point(row, col);
 
-    private static IEnumerable<Box> Pushing(this IEnumerable<Box> boxes, Point pressingAt, Direction direction)
+    private static IEnumerable<Box> MoveAll(this IEnumerable<Box> boxes, Direction direction) =>
+        boxes.Select(box => box.Move(direction));
+
+    private static bool CanMoveAll(this IEnumerable<Box> boxes, Direction direction, State state) =>
+        boxes.All(box => box.CanMove(direction, state));
+
+    private static IEnumerable<Box> GetPushingGroup(this State state, Direction direction)
     {
-        Dictionary<Point, Box> boxPoints = new();
-        HashSet<Box> notPushed = CreateBoxIndex();
+        HashSet<Box> notPushingBoxes = state.Boxes.ToHashSet();
+        Dictionary<Point, Box> pointToBox = state.Boxes.SelectMany(GetPoints).ToDictionary();
 
-        foreach (Box box in boxes)
-        {
-            notPushed.Add(box);
-            box.Points.ForEach(point => boxPoints[point] = box);
-        }
-
-        Queue<Point> pressurePoints = new();
-        pressurePoints.Enqueue(pressingAt);
+        Queue<Point> pressurePoints = new([state.Robot.Move(direction)]);
 
         while (pressurePoints.Count > 0)
         {
             Point current = pressurePoints.Dequeue();
-            if (!boxPoints.TryGetValue(current, out Box? pressingBox)) continue;
+            if (!pointToBox.TryGetValue(current, out Box? pushingBox)) continue;
 
-            if (notPushed.Contains(pressingBox))
+            if (notPushingBoxes.Contains(pushingBox))
             {
-                notPushed.Remove(pressingBox);
-                yield return pressingBox;
+                notPushingBoxes.Remove(pushingBox);
+                yield return pushingBox;
             }
 
-            pressingBox.Points
+            pushingBox.Points
                 .Select(point => point.Move(direction))
-                .Where(point => !pressingBox.Points.Contains(point))
+                .Where(point => !pushingBox.Points.Contains(point))
                 .ForEach(pressurePoints.Enqueue);
         }
     }
 
-    private static HashSet<Box> CreateBoxIndex() =>
-        new(EqualityComparer<Box>.Create(
-            (a, b) => a?.Points[0] == b?.Points[0],
-            box => box?.Points[0].GetHashCode() ?? 0));
+    private static IEnumerable<(Point point, Box box)> GetPoints(this Box box) =>
+        box.Points.Select(point => (point, box));
+
+    private static HashSet<Box> ToHashSet(this IEnumerable<Box> boxes) =>
+        new HashSet<Box>(boxes,
+            EqualityComparer<Box>.Create(
+                (a, b) => a?.Points[0] == b?.Points[0],
+                box => box?.Points[0].GetHashCode() ?? 0));
 
     private static Box Move(this Box box, Direction direction) =>
         new(box.Points.Select(point => point.Move(direction)).ToArray());
@@ -142,21 +162,21 @@ static class Day15
         _ => throw new ArgumentException($"Invalid direction: {direction}")
     };
 
-    private static State Scaled(this State state) =>
-        new(state.Boxes.Select(Scaled).ToArray(),
-            state.Robot.ScaledRobot(),
-            state.Walls.SelectMany(ScaledWall).ToHashSet());
+    private static State ScaledUp(this State state) =>
+        new(state.Boxes.Select(ScaledUp).ToArray(),
+            state.Robot.ScaledUpRobot(),
+            state.Walls.SelectMany(ScaledUpWall).ToHashSet());
 
-    private static Box Scaled(this Box box) => box.Points switch
+    private static Box ScaledUp(this Box box) => box.Points switch
     {
         [ (int row, int col) ] => new Box([ new(row, 2 * col), new(row, 2 * col + 1) ]),
         _ => throw new ArgumentException("The box is already scaled")
     };
 
-    private static Point ScaledRobot(this Point point) =>
+    private static Point ScaledUpRobot(this Point point) =>
         new(point.Row, 2 * point.Col);
 
-    private static Point[] ScaledWall(this Point wall) =>
+    private static Point[] ScaledUpWall(this Point wall) =>
         [ new(wall.Row, 2 * wall.Col), new(wall.Row, 2 * wall.Col + 1) ];
 
     private static State Copy(this State state) =>
