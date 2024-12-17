@@ -1,4 +1,3 @@
-using System.Data;
 using System.Diagnostics;
 
 static class Day15
