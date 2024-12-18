@@ -36,7 +36,6 @@ static class Day17
     {
         var values = text.ReadLines()
             .Where(line => !string.IsNullOrWhiteSpace(line))
-            .Take(4)
             .Select(line => line.ParseLongsNoSign())
             .ToArray();
 
