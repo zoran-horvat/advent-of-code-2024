@@ -1,5 +1,3 @@
-using System.Drawing;
-
 static class Day19
 {
     public static void Run()
