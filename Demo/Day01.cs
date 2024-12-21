@@ -4,20 +4,16 @@ static class Day01
     {
         (List<int> left, List<int> right) = Console.In.LoadLists();
 
-        var dist = left.Order()
+        var distance = left.Order()
             .Zip(right.Order(), (x, y) => Math.Abs(x - y))
             .Sum();
 
-        var index = left
-            .GroupBy(x => x, (value, appearances) => (value: value, count: appearances.Count()))
-            .ToDictionary(pair => pair.value, pair => pair.count);
-
-        var similarity = right
-            .Where(index.ContainsKey)
-            .Sum(rightValue => rightValue * index[rightValue]);
+        var similarity = 
+            left.Join(right, l => l, r => r, (a, b) => b)
+            .Sum();
 
         Console.WriteLine($"Total items: {left.Count}");
-        Console.WriteLine($"   Distance: {dist}");
+        Console.WriteLine($"   Distance: {distance}");
         Console.WriteLine($" Similarity: {similarity}");
     }
 
