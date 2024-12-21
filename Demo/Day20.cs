@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Data;
 
 static class Day20
 {
@@ -16,10 +15,20 @@ static class Day20
         int cheatingPaths20 = maze.FindCheatingSaves(path, 20)
             .Count(save => save <= shortestPath - 100);
 
+        // maze.FindCheatingSaves(path, 2).Where(length => length < shortestPath).PrintSaves(shortestPath);
+        // Console.WriteLine();
+        // maze.FindCheatingSaves(path, 20).Where(length => length < shortestPath).PrintSaves(shortestPath);
+        // Console.WriteLine();
+
         Console.WriteLine($"Shortest path: {shortestPath}");
         Console.WriteLine($"Cheating paths: {cheatingPaths2}");
         Console.WriteLine($"Cheating paths: {cheatingPaths20}");
     }
+
+    private static void PrintSaves(this IEnumerable<int> pathLengths, int shortestPath) =>
+        pathLengths.GroupBy(length => shortestPath - length, (saved, paths) => (saved, count: paths.Count()))
+            .OrderBy(pair => pair.saved)
+            .ForEach(pair => Console.WriteLine($"{pair.count} x {pair.saved} steps saved"));
 
     private static IEnumerable<int> FindCheatingSaves(this char[][] maze, IEnumerable<Point> path, int maxCut)
     {
