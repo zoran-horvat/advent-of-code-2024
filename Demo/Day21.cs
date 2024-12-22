@@ -65,20 +65,20 @@ static class Day21
                 continue;
             }
 
-            var verticalCommand = reached.Position.Row > to.Position.Row ? '^' : 'v';
-            var horizontalCommand = reached.Position.Col > to.Position.Col ? '<' : '>';
+            var verticalStep = Math.Sign(to.Position.Row - reached.Position.Row);
+            var horizontalStep = Math.Sign(to.Position.Col - reached.Position.Col);
 
-            var nextVertically = reached.Position.Move(verticalCommand);
-            var nextHorizontally = reached.Position.Move(horizontalCommand);
+            var nextVertically = reached.Position with { Row = reached.Position.Row + verticalStep };
+            var nextHorizontally = reached.Position with { Col = reached.Position.Col + horizontalStep };
 
-            if (reached.Position.Row != to.Position.Row && nextVertically.IsValid(keyboard))
+            if (verticalStep != 0 && nextVertically.IsValid(keyboard))
             {
-                pending.Enqueue((keyboard.GetKey(nextVertically), path + verticalCommand));
+                pending.Enqueue((keyboard.GetKey(nextVertically), path + verticalStep));
             }
 
-            if (reached.Position.Col != to.Position.Col && nextHorizontally.IsValid(keyboard))
+            if (horizontalStep != 0 && nextHorizontally.IsValid(keyboard))
             {
-                pending.Enqueue((keyboard.GetKey(nextHorizontally), path + horizontalCommand));
+                pending.Enqueue((keyboard.GetKey(nextHorizontally), path + horizontalStep));
             }
         }
     }
@@ -90,10 +90,6 @@ static class Day21
 
     private static Key GetKey(this Keyboard keyboard, Point point) =>
         keyboard.GetKeys().First(key => key.Position == point);
-
-    private static Point Move(this Point point, char command) => new (
-        point.Row + (command == 'v' ? 1 : command == '^' ? -1 : 0),
-        point.Col + (command == '>' ? 1 : command == '<' ? -1 : 0));
 
     private static KeyboardMap MapHuman(this Keyboard keyboard) =>
         new(keyboard, keyboard.GetKeyPairs().ToDictionary(pair => pair, _ => 1L));
