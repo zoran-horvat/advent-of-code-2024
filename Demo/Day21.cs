@@ -2,16 +2,16 @@ static class Day21
 {
     public static void Run()
     {
+        var codes = Console.In.ReadLines().ToList();
 
         KeyboardMap map2 = MapRobots(2);
         KeyboardMap map25 = MapRobots(25);
 
-        var codes = Console.In.ReadLines().ToList();
         long totalCommands2 = codes.Sum(code => code.GetComplexity(map2));
         long totalCommands25 = codes.Sum(code => code.GetComplexity(map25));
 
-        Console.WriteLine($"Total commands: {totalCommands2}");
-        Console.WriteLine($"Total commands: {totalCommands25}");
+        Console.WriteLine($" Total commands (2 robots): {totalCommands2}");
+        Console.WriteLine($"Total commands (25 robots): {totalCommands25}");
     }
 
     private static long GetComplexity(this string code, KeyboardMap map) =>
