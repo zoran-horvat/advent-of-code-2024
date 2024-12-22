@@ -87,7 +87,7 @@ static class Day21
         keyboard.Rows[point.Row][point.Col] != ' ';
 
     private static Key GetKey(this Keyboard keyboard, Point point) =>
-        keyboard.GetKeys().First(key => key.Position == point);
+        new Key(keyboard.Rows[point.Row][point.Col], point);
 
     private static KeyboardMap MapHuman(this Keyboard keyboard) =>
         new(keyboard, keyboard.GetKeyPairs().ToDictionary(pair => pair, _ => 1L));
