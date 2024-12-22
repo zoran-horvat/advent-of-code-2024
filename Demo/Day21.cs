@@ -2,11 +2,11 @@ static class Day21
 {
     public static void Run()
     {
-        var codes = Console.In.ReadLines().ToList();
 
         KeyboardMap map2 = MapRobots(2);
         KeyboardMap map25 = MapRobots(25);
 
+        var codes = Console.In.ReadLines().ToList();
         long totalCommands2 = codes.Sum(code => code.GetComplexity(map2));
         long totalCommands25 = codes.Sum(code => code.GetComplexity(map25));
 
@@ -71,12 +71,12 @@ static class Day21
 
             if (verticalStep != 0 && nextVertically.IsValid(keyboard))
             {
-                pending.Enqueue((keyboard.GetKey(nextVertically), path + verticalStep));
+                pending.Enqueue((keyboard.GetKey(nextVertically), path + (verticalStep > 0 ? 'v' : '^')));
             }
 
             if (horizontalStep != 0 && nextHorizontally.IsValid(keyboard))
             {
-                pending.Enqueue((keyboard.GetKey(nextHorizontally), path + horizontalStep));
+                pending.Enqueue((keyboard.GetKey(nextHorizontally), path + (horizontalStep > 0 ? '>' : '<')));
             }
         }
     }
