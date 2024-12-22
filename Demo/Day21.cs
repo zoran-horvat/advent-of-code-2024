@@ -36,20 +36,18 @@ static class Day21
 
     private static long GetCommandsLength(this string path, KeyboardMap @operator)
     {
-        char state = 'A';
+        Key state = @operator.Keyboard.Find('A');
         long commands = 0;
 
         foreach (char command in path)
         {
-            commands += @operator.GetCommandsLength(state, command);
-            state = command;
+            Key next = @operator.Keyboard.Find(command);
+            commands += @operator.Distances[(state, next)];
+            state = next;
         }
 
         return commands;
     }
-
-    private static long GetCommandsLength(this KeyboardMap map, char from, char to) =>
-        map.Distances[(map.Keyboard.Find(from), map.Keyboard.Find(to))];
 
     private static IEnumerable<string> GetAllPaths(this Keyboard keyboard, Key from, Key to)
     {
