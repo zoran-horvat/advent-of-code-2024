@@ -83,7 +83,7 @@ static class Day22
     [
         x => x << 6,
         x => x >> 5,
-        x => x * 2048
+        x => x << 11
     ];
 
     private static IEnumerable<long> Evolve(this long value, IEnumerable<Func<long, long>> transforms)
