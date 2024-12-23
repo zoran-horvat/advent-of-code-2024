@@ -101,7 +101,7 @@ static class Day22
 
     private static long MixWith(this long a, long b) => a ^ b;
 
-    private static long Prune(this long value) => value % 16777216;
+    private static long Prune(this long value) => value & 0b_1111_1111_1111_1111_1111_1111;
 
     private static IEnumerable<long> ReadNumbers(this TextReader text) =>
         text.ReadLines().Select(long.Parse);
