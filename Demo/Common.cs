@@ -39,8 +39,12 @@ static class Common
         }
     }
 
-    public static void ForEach<T>(this IEnumerable<T> sequence, Action<T> action)
+    public static IEnumerable<T> ForEach<T>(this IEnumerable<T> sequence, Action<T> action)
     {
-        foreach (var item in sequence) action(item);
+        foreach (var item in sequence)
+        {
+            action(item);
+            yield return item;
+        }
     }
 }
