@@ -16,7 +16,7 @@ static class Day23
         string.Join(",", nodes.Order().Select(node => node.Id));
 
     private static List<Node> GetMaximalClique(this Graph graph) =>
-        graph.BronKerbosch(new(), graph.Edges.Keys.ToHashSet(), new());
+        graph.BronKerbosch(new(), graph.GetNodes().ToHashSet(), new());
 
     private static List<Node> BronKerbosch(this Graph graph, HashSet<Node> currentClique, HashSet<Node> candidates, HashSet<Node> visited)
     {
@@ -43,10 +43,10 @@ static class Day23
         node.Id.StartsWith("t");
 
     private static IEnumerable<List<Node>> FindCliques3(this Graph graph) =>
-        from a in graph.Edges.Keys
-        from b in graph.Edges[a]
+        from a in graph.GetNodes()
+        from b in graph.GetNeighborsOf(a)
         where a < b
-        from c in graph.Edges[b].Intersect(graph.Edges[a])
+        from c in graph.GetNeighborsOf(b).Intersect(graph.GetNeighborsOf(a))
         where b < c
         select new List<Node> { a, b, c };
 
@@ -63,6 +63,10 @@ static class Day23
             .Select(line => line.Split("-"))
             .Select(pair => (from: new Node(pair[0]), to: new Node(pair[1])))
             .SelectMany(edge => new[] { (edge.from, edge.to), (edge.to, edge.from) });
+
+    private static IEnumerable<Node> GetNodes(this Graph graph) => graph.Edges.Keys;
+
+    private static IEnumerable<Node> GetNeighborsOf(this Graph graph, Node node) => graph.Edges[node];
 
     record Graph(Dictionary<Node, HashSet<Node>> Edges);
 
