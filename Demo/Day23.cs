@@ -5,34 +5,38 @@ static class Day23
         var graph = Console.In.ToGraph();
 
         int chiefCliques = graph.FindCliques3().Count(nodes => nodes.Any(MaybeChief));
-
-        var maximalClique = graph.BronKerbosch(new(), graph.Edges.Keys.ToHashSet(), new()).Order();
-        string password = string.Join(",", maximalClique.Select(node => node.Id));
+        string password = graph.GetMaximalClique().ToPassword();
 
         Console.WriteLine($"   Nodes count: {graph.Edges.Keys.Count}");
         Console.WriteLine($" Chief cliques: {chiefCliques}");
         Console.WriteLine($"      Password: {password}");
     }
 
-    private static List<Node> BronKerbosch(this Graph graph, HashSet<Node> r, HashSet<Node> p, HashSet<Node> x)
+    private static string ToPassword(this IEnumerable<Node> nodes) =>
+        string.Join(",", nodes.Order().Select(node => node.Id));
+
+    private static List<Node> GetMaximalClique(this Graph graph) =>
+        graph.BronKerbosch(new(), graph.Edges.Keys.ToHashSet(), new());
+
+    private static List<Node> BronKerbosch(this Graph graph, HashSet<Node> currentClique, HashSet<Node> candidates, HashSet<Node> visited)
     {
-        if (p.Count == 0 && x.Count == 0) return r.ToList();
+        if (candidates.Count == 0 && visited.Count == 0) return currentClique.ToList();
 
-        List<Node> winner = new();
-        foreach (var pNode in p)
+        List<Node> maximalClique = new();
+        foreach (var node in candidates)
         {
-            HashSet<Node> r1 = new(r) { pNode };
-            HashSet<Node> p1 = p.Intersect(graph.Edges[pNode]).ToHashSet();
-            HashSet<Node> x1 = x.Intersect(graph.Edges[pNode]).ToHashSet();
-            
-            var candidate = graph.BronKerbosch(r1, p1, x1);
-            if (candidate.Count > winner.Count) winner = candidate;
+            var candidateClique = graph.BronKerbosch(
+                new(currentClique) { node },
+                candidates.Intersect(graph.Edges[node]).ToHashSet(),
+                visited.Intersect(graph.Edges[node]).ToHashSet());
 
-            p.Remove(pNode);
-            x.Add(pNode);
+            if (candidateClique.Count > maximalClique.Count) maximalClique = candidateClique;
+
+            candidates.Remove(node);
+            visited.Add(node);
         }
 
-        return winner;
+        return maximalClique;
     }
 
     private static bool MaybeChief(this Node node) =>
