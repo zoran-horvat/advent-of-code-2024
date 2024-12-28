@@ -9,7 +9,7 @@ static class Day24
 
         long number = circuit.GetOutputNumber(input.Values.ToArray());
 
-        // circuit.Print();
+        circuit.Print();
 
         var (fixedCircuit, swaps) = circuit.FixAdder();
 
@@ -50,16 +50,15 @@ static class Day24
 
         (Gate? priorOutXor, remainingGates) = remainingGates.Pick(null, null, Pin.Create("z02"), typeof(XorGate));
         if (priorOutXor is null) throw new InvalidOperationException();
-        Pin otherIn = priorOutXor.In1 == priorInputXor.Out ? priorOutXor.In2 : priorOutXor.In1;
 
-        (Gate? priorOr, remainingGates) = remainingGates.Pick(null, null, otherIn, typeof(OrGate));
+        (Gate? priorOr, remainingGates) = remainingGates.Pick(null, null, priorOutXor.OtherInput(priorInputXor.Out), typeof(OrGate));
         if (priorOr is null) throw new InvalidOperationException();
 
         fixedGates.AddRange([priorInputXor, priorOutXor, priorOr]);
 
         int position = ((PositionalPin)priorOutXor.Out).Position;
 
-        while (priorOutXor.Out is PositionalPin pin && position < inputBits - 1)
+        while (position < inputBits - 1)
         {
             position += 1;
 
