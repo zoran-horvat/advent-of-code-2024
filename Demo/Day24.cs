@@ -259,7 +259,6 @@ static class Day24
 
     private static IEnumerable<Gate> ReadGates(this TextReader text) =>
         text.ReadLines()
-            .TakeWhile(line => line != "x")
             .Select(line => Regex.Match(line, @"(?<in1>[^\s]+)\s(?<op>AND|OR|XOR)\s(?<in2>[^\s]+)\s->\s(?<pin>.+)"))
             .Where(match => match.Success)
             .Select(match => (
