@@ -232,7 +232,6 @@ static class Day24
             .SelectMany(gate => new[] { gate.In1, gate.In2, gate.Out })
             .OfType<PositionalPin>()
             .Where(pin => pin.Group == group)
-            .OfType<PositionalPin>()
             .Distinct();
 
     private static Signal Evaluate(this Pin pin, Circuit circuit, Dictionary<Pin, Signal> signals)
