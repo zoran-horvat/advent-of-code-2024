@@ -2,55 +2,42 @@ static class Day25
 {
     public static void Run()
     {
-        var items = Console.In.ReadItems().ToList();
-
-        var totalFits = items.CountFits();
+        var blocks = Console.In.ReadBlocks().ToList();
+        
+        var totalFits = blocks.GetFits().Count();
 
         Console.WriteLine($"Total lock-key fits: {totalFits}");
     }
 
-    private static int CountFits(this IEnumerable<Item> items) =>
-        items.OfType<Lock>().Sum(@lock => items.OfType<Key>().Count(@lock.Fits));
+    private static IEnumerable<(List<string> a, List<string> b)> GetFits(this List<List<string>> blocks) =>
+        from pair in blocks.Select((block, i) => (block, i))
+        let a = pair.block
+        from b in blocks.Skip(pair.i + 1)
+        where a.Fits(b)
+        select (a, b);
 
-    private static IEnumerable<Item> ReadItems(this TextReader text)
+    private static bool Fits(this List<string> a, List<string> b) =>
+        a.Zip(b).All(pair => 
+            pair.First.Zip(pair.Second).All(
+                chars => chars.First != '#' || chars.Second != '#'));
+
+    private static IEnumerable<List<string>> ReadBlocks(this TextReader text)
     {
-        bool isLock = false;
-        char pinChar = '.';
-        int[] pins = Array.Empty<int>();
+        var block = new List<string>();
 
-        foreach (var line in text.ReadLines().Concat([""]))
+        foreach (var line in text.ReadLines())
         {
             if (string.IsNullOrWhiteSpace(line))
             {
-                var key = new Key(pins);
-                if (isLock) yield return new Lock(key);
-                else yield return key;
-            
-                pins = Array.Empty<int>();
-                continue;
+                yield return block;
+                block = new List<string>();
             }
-
-            if (pins.Length == 0)
+            else
             {
-                pins = new int[line.Length];
-                isLock = line[0] == '#';
-                pinChar = isLock ? '.' : '#';
-            }
-
-            for (int i = 0; i < line.Length; i++)
-            {
-                if (line[i] == pinChar) pins[i]++;
+                block.Add(line);
             }
         }
+
+        if (block.Count > 0) yield return block;
     }
-
-    private static bool Fits(this Lock @lock, Key key) =>
-        @lock.Key.Pins
-            .Zip(key.Pins, (lockPin, keyPin) => lockPin >= keyPin)
-            .All(x => x);
-
-    abstract record Item;
-
-    record Key(int[] Pins) : Item;
-    record Lock(Key Key) : Item;
 }
