@@ -10,15 +10,15 @@ static class Day06
 
         Stopwatch stepsStopwatch = Stopwatch.StartNew();
         int stepsCount = map.Path()
-            .Select(state => (state.row, state.col))
+            .Select(state => state.Point)
             .Distinct()
             .Count();
         stepsStopwatch.Stop();
 
         Stopwatch obstructionStopwatch = Stopwatch.StartNew();
-        var startingPos = map.GetStartingPosition();
-        int obstructionPointsCount = map.Path().Select(state => (state.row, state.col))
-            .Where(coord => coord != (startingPos.row, startingPos.col))
+        var startingPos = map.FindStartingPosition();
+        int obstructionPointsCount = map.Path().Select(state => state.Point)
+            .Where(coord => coord != startingPos.Point)
             .Distinct()
             .Count(coord => map.WhatIf(coord, map => map.ContainsLoop()));
         obstructionStopwatch.Stop();
@@ -27,69 +27,91 @@ static class Day06
         Console.WriteLine($"Obstruction points count: {obstructionPointsCount} (in {obstructionStopwatch.ElapsedMilliseconds} ms)");
     }
 
-    private static IEnumerable<(int row, int col, char orientation)> Path(this char[][] map)
+    private static IEnumerable<Position> Path(this char[][] map)
     {
-        (int row, int col, char orientation) state = map.GetStartingPosition();
-        yield return state;
+        Position position = map.FindStartingPosition();
+        yield return position;
 
-        HashSet<(int row, int col, char orientation)> visited = new() { state };
+        HashSet<Position> visited = [ position ];
 
-        while (true)
+        while (map.Contains(position.Point))
         {
-            state = state.orientation switch
-            {
-                '^' when map.ContainsObstacle(state.row - 1, state.col) =>
-                    (state.row, state.col, '>'),
-                '^' => (state.row - 1, state.col, state.orientation),
-                '>' when map.ContainsObstacle(state.row, state.col + 1) =>
-                    (state.row, state.col, 'v'),
-                '>' => (state.row, state.col + 1, state.orientation),
-                'v' when map.ContainsObstacle(state.row + 1, state.col) =>
-                    (state.row, state.col, '<'),
-                'v' => (state.row + 1, state.col, state.orientation),
-                '<' when map.ContainsObstacle(state.row, state.col - 1) =>
-                    (state.row, state.col, '^'),
-                _ => (state.row, state.col - 1, state.orientation),
-            };
+            Position next = position.StepStraight();
+            if (map.IsObstacle(next.Point)) next = position.TurnRight();
 
-            if (map.IsInside(state.row, state.col)) yield return state;
-            else yield break;
+            if (!map.Contains(next.Point)) yield break;
 
-            if (!visited.Add(state)) yield break;
+            yield return next;
+
+            if (!visited.Add(next)) yield break;
+
+            position = next;
         }
     }
 
     private static bool ContainsLoop(this char[][] map) =>
         map.Path().Aggregate(
-            (loop: false, steps: new HashSet<(int row, int col, char orientation)>()),
+            (loop: false, steps: new HashSet<Position>()),
             (path, step) => (path.loop || !path.steps.Add(step), path.steps))
             .loop;
 
-    private static T WhatIf<T>(this char[][] map, (int row, int col) putObstacleAt, Func<char[][], T> func)
+    private static T WhatIf<T>(this char[][] map, Point putObstacleAt, Func<char[][], T> func)
     {
-        char original = map[putObstacleAt.row][putObstacleAt.col];
-        map[putObstacleAt.row][putObstacleAt.col] = '#';
+        char original = map.At(putObstacleAt);
+        map[putObstacleAt.Row][putObstacleAt.Column] = '#';
 
         T result = func(map);
 
-        map[putObstacleAt.row][putObstacleAt.col] = original;
+        map[putObstacleAt.Row][putObstacleAt.Column] = original;
 
         return result;
     }
 
-    private static bool ContainsObstacle(this char[][] map, int row, int col) =>
-        map.IsInside(row, col) && map[row][col] == '#';
+    private static Position StepStraight(this Position position) =>
+        position with { Point = position.Point.Step(position.Orientation) };
+    
+    private static Position TurnRight(this Position position) =>
+        position with { Orientation = position.Orientation.TurnRight() };
+    
+    private static char TurnRight(this char orientation) =>
+        Orientations[(Orientations.IndexOf(orientation) + 1) % Orientations.Length];
+    
+    private static Point Step(this Point point, char direction) =>
+        direction switch
+        {
+            '^' => new Point(point.Row - 1, point.Column),
+            '>' => new Point(point.Row, point.Column + 1),
+            'v' => new Point(point.Row + 1, point.Column),
+            _ => new Point(point.Row, point.Column - 1)
+        };
 
-    private static bool IsInside(this char[][] map, int row, int col) =>
-        row >= 0 && row < map.Length && col >= 0 && col < map[0].Length;
+    private static bool CanStepTo(this char[][] map, Point point) =>
+        map.Contains(point) && AvailableCells.Contains(map.At(point));
 
-    private static (int row, int col, char orientation) GetStartingPosition(this char[][] map) =>
-        map.GetContent().First(tuple => Orientations.Contains(tuple.content));
+    private static bool IsObstacle(this char[][] map, Point point) =>
+        map.Contains(point) && map.At(point) == '#';
 
-    private static IEnumerable<(int row, int col, char content)> GetContent(this char[][] map) =>
+    private static bool Contains(this char[][] map, Point point) =>
+        point.Row >= 0 && point.Row < map.Length &&
+        point.Column >= 0 && point.Column < map[point.Row].Length;
+
+    private static char At(this char[][] map, Point point) =>
+        map[point.Row][point.Column];
+
+    private static Position FindStartingPosition(this char[][] map) =>
+        map.GetOrientationSigns().First();
+
+    private static IEnumerable<Position> GetOrientationSigns(this char[][] map) =>
         from row in Enumerable.Range(0, map.Length)
         from col in Enumerable.Range(0, map[row].Length)
-        select (row, col, map[row][col]);
+        where Orientations.Contains(map[row][col])
+        select new Position(new Point(row, col), map[row][col]);
+
+    private static string AvailableCells = Orientations + ".";
 
     private static string Orientations = "^>v<";
+
+    private record Position(Point Point, char Orientation);
+
+    private record Point(int Row, int Column);
 }
