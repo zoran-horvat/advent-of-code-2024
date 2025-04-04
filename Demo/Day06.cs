@@ -60,7 +60,10 @@ static class Day06
     }
 
     private static bool ContainsLoop(this char[][] map) =>
-        map.Path().Count() != map.Path().Distinct().Count();
+        map.Path().Aggregate(
+            (loop: false, steps: new HashSet<(int row, int col, char orientation)>()),
+            (path, step) => (path.loop || !path.steps.Add(step), path.steps))
+            .loop;
 
     private static T WhatIf<T>(this char[][] map, (int row, int col) putObstacleAt, Func<char[][], T> func)
     {
