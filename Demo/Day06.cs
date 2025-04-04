@@ -26,21 +26,21 @@ static class Day06
     }
 
     private static IEnumerable<Point> DesignObstructions(this char[][] map) =>
-        map.GetObstructionCandidates().Where(obstruction => obstruction.CausesLoop(map));
+        map.GetObstructionCandidates(map.FindStartingPosition().Point)
+            .Where(obstruction => obstruction.CausesLoop(map));
 
-    private static IEnumerable<Point> GetObstructionCandidates(this char[][] map) =>
+    private static IEnumerable<Point> GetObstructionCandidates(this char[][] map, Point start) =>
         map.Path()
-            .Select(point => point.Step(map))
-            .Where(next => map.Contains(next.Point) && !map.IsObstruction(next.Point))
-            .Select(next => next.Point)
-            .Except([map.FindStartingPosition().Point]);
+            .Select(position => position.Point)
+            .Where(point => point != start)
+            .Distinct();
 
     private static bool CausesLoop(this Point obstruction, char[][] map)
     {
         var content = map[obstruction.Row][obstruction.Column];
         map[obstruction.Row][obstruction.Column] = '#';
         
-        bool loop = map.Contains(map.Path().Last().Step(map).Point);
+        bool loop = map.Contains(map.Path().Last().StepForward().Point);
 
         map[obstruction.Row][obstruction.Column] = content;
 
