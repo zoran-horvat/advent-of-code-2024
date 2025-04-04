@@ -81,8 +81,12 @@ static class Day06
         row >= 0 && row < map.Length && col >= 0 && col < map[0].Length;
 
     private static (int row, int col, char orientation) GetStartingPosition(this char[][] map) =>
-        map.SelectMany((row, rowIndex) => row.Select((cell, colIndex) => (rowIndex, colIndex, cell)))
-            .First(tuple => Orientations.Contains(tuple.cell));
+        map.GetContent().First(tuple => Orientations.Contains(tuple.content));
+
+    private static IEnumerable<(int row, int col, char content)> GetContent(this char[][] map) =>
+        from row in Enumerable.Range(0, map.Length)
+        from col in Enumerable.Range(0, map[row].Length)
+        select (row, col, map[row][col]);
 
     private static string Orientations = "^>v<";
 }
