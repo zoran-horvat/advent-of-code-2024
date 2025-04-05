@@ -1,5 +1,6 @@
 using System.Data;
 using System.Diagnostics;
+using System.Drawing;
 
 static class Day06
 {
@@ -26,33 +27,58 @@ static class Day06
     }
 
     private static IEnumerable<Point> DesignObstructions(this char[][] map) =>
-        map.GetObstructionCandidates(map.FindStartingPosition().Point)
-            .Where(obstruction => obstruction.CausesLoop(map));
+        map.DesignObstructions(map.Path().ToList());
 
-    private static IEnumerable<Point> GetObstructionCandidates(this char[][] map, Point start) =>
-        map.Path()
-            .Select(position => position.Point)
-            .Where(point => point != start)
-            .Distinct();
-
-    private static bool CausesLoop(this Point obstruction, char[][] map)
+    private static IEnumerable<Point> DesignObstructions(
+        this char[][] map, List<Position> path)
     {
-        var content = map[obstruction.Row][obstruction.Column];
-        map[obstruction.Row][obstruction.Column] = '#';
-        
-        bool loop = map.Contains(map.Path().Last().StepForward().Point);
+        HashSet<Position> visited = [];
+        HashSet<Point> checkedObstructions = new();
 
-        map[obstruction.Row][obstruction.Column] = content;
+        for (int i = 0; i < path.Count; i++)
+        {
+            if (path[i].Point != path[0].Point && 
+                path[i].Point != path[i - 1].Point &&
+                checkedObstructions.Add(path[i].Point) &&
+                path[i].Point.CausesLoop(map, visited, path[i - 1].TurnRight()))
+            {
+                yield return path[i].Point;
+            }
+
+            visited.Add(path[i]);
+        }
+    }
+
+    private static bool CausesLoop(
+        this Point obstruction, char[][] map,
+        HashSet<Position> visited, Position position)
+    {
+        var oldValue = map.Set(obstruction, '#');
+
+        bool loop = false;
+        HashSet<Position> newVisited = [];
+
+        while (map.Contains(position.Point))
+        {
+            if (visited.Contains(position) || !newVisited.Add(position))
+            {
+                loop = true;
+                break;
+            }
+
+            position = position.Step(map);
+        }
+
+        map.Set(obstruction, oldValue);
 
         return loop;
     }
 
     private static IEnumerable<Position> Path(this char[][] map)
     {
-        HashSet<Position> visited = [];
         Position position = map.FindStartingPosition();
 
-        while (map.Contains(position.Point) && visited.Add(position))
+        while (map.Contains(position.Point))
         {
             yield return position;
             position = position.Step(map);
@@ -87,6 +113,13 @@ static class Day06
     private static bool Contains(this char[][] map, Point point) =>
         point.Row >= 0 && point.Row < map.Length &&
         point.Column >= 0 && point.Column < map[point.Row].Length;
+
+    private static char Set(this char[][] map, Point point, char value)
+    {
+        char oldValue = map[point.Row][point.Column];
+        map[point.Row][point.Column] = value;
+        return oldValue;
+    }
 
     private static char At(this char[][] map, Point point) =>
         map[point.Row][point.Column];
