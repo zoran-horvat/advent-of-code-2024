@@ -1,6 +1,5 @@
 using System.Data;
 using System.Diagnostics;
-using System.Drawing;
 
 static class Day06
 {
