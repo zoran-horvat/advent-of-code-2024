@@ -25,26 +25,22 @@ static class Day06
         Console.WriteLine($"Obstruction points count: {obstructionsCount} (in {obstructionStopwatch.ElapsedMilliseconds} ms)");
     }
 
-    private static IEnumerable<Point> DesignObstructions(this char[][] map) =>
-        map.DesignObstructions(map.Path().ToList());
-
-    private static IEnumerable<Point> DesignObstructions(
-        this char[][] map, List<Position> path)
+    private static IEnumerable<Point> DesignObstructions(this char[][] map)
     {
         HashSet<Position> visited = [];
-        HashSet<Point> checkedObstructions = new();
+        Position origin = map.FindStartingPosition();
+        HashSet<Point> checkedObstructions = [ origin.Point ];
 
-        for (int i = 0; i < path.Count; i++)
+        foreach (Position position in map.Path(origin))
         {
-            if (path[i].Point != path[0].Point && 
-                path[i].Point != path[i - 1].Point &&
-                checkedObstructions.Add(path[i].Point) &&
-                path[i].Point.CausesLoop(map, visited, path[i - 1].TurnRight()))
-            {
-                yield return path[i].Point;
-            }
+            visited.Add(position);
+            Point ahead = position.StepForward().Point;
 
-            visited.Add(path[i]);
+            if (!map.Contains(ahead) || map.IsObstruction(ahead)) continue;
+            if (!checkedObstructions.Add(ahead)) continue;
+            if (!ahead.CausesLoop(map, visited, position.TurnRight())) continue;
+            
+            yield return ahead;
         }
     }
 
@@ -73,10 +69,11 @@ static class Day06
         return loop;
     }
 
-    private static IEnumerable<Position> Path(this char[][] map)
-    {
-        Position position = map.FindStartingPosition();
+    private static IEnumerable<Position> Path(this char[][] map) =>
+        map.Path(map.FindStartingPosition());
 
+    private static IEnumerable<Position> Path(this char[][] map, Position position)
+    {
         while (map.Contains(position.Point))
         {
             yield return position;
@@ -134,7 +131,7 @@ static class Day06
 
     private static string Orientations = "^>v<";
 
-    private record Position(Point Point, char Orientation);
+    private record struct Position(Point Point, char Orientation);
 
-    private record Point(int Row, int Column);
+    private record struct Point(int Row, int Column);
 }
