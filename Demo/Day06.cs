@@ -9,100 +9,80 @@ static class Day06
             .Select(row => row.ToCharArray())
             .ToArray();
 
-        Stopwatch stepsStopwatch = Stopwatch.StartNew();
-        int stepsCount = map.Path()
-            .Select(state => state.Point)
-            .Distinct()
-            .Count();
-        stepsStopwatch.Stop();
+        Stopwatch pathTime = Stopwatch.StartNew();
+        int pathLength = map.GetPath().Count();
+        pathTime.Stop();
 
-        Stopwatch obstructionStopwatch = Stopwatch.StartNew();
-        int obstructionsCount = map.DesignObstructions().Count();
-        obstructionStopwatch.Stop();
+        Stopwatch obstructionTime = Stopwatch.StartNew();
+        int obstructionPoints = map.GetObstructionPoints().Count();
+        obstructionTime.Stop();
 
-        Console.WriteLine($"                Map size: {map.Length} x {map[0].Length}");
-        Console.WriteLine($"             Steps count: {stepsCount} (in {stepsStopwatch.ElapsedMilliseconds} ms)");
-        Console.WriteLine($"Obstruction points count: {obstructionsCount} (in {obstructionStopwatch.ElapsedMilliseconds} ms)");
+        Console.WriteLine($"       Path Length: {pathLength} ({pathTime.ElapsedMilliseconds} ms)");
+        Console.WriteLine($"Obstruction Points: {obstructionPoints} ({obstructionTime.ElapsedMilliseconds} ms)");
     }
 
-    private static IEnumerable<Point> DesignObstructions(this char[][] map)
+    private static IEnumerable<Point> GetObstructionPoints(this char[][] map) =>
+        map.GetObstructionPoints(map.FindStartingPosition());
+
+    private static IEnumerable<Point> GetObstructionPoints(this char[][] map, Position start)
     {
         HashSet<Position> visited = [];
-        Position origin = map.FindStartingPosition();
-        HashSet<Point> checkedObstructions = [ origin.Point ];
+        HashSet<Point> checkedObstructions = [ start.Point ];
 
-        foreach (Position position in map.Path(origin))
+        foreach (Position current in map.Walk(start))
         {
-            visited.Add(position);
-            Point ahead = position.StepForward().Point;
+            visited.Add(current);
+            Point ahead = current.StepForward().Point;
 
             if (!map.Contains(ahead) || map.IsObstruction(ahead)) continue;
             if (!checkedObstructions.Add(ahead)) continue;
-            if (!ahead.CausesLoop(map, visited, position.TurnRight())) continue;
-            
+            if (!ahead.CausesLoop(map, current.TurnRight(), visited)) continue;
+
             yield return ahead;
         }
     }
 
     private static bool CausesLoop(
-        this Point obstruction, char[][] map,
-        HashSet<Position> visited, Position position)
+        this Point obstruction, char[][] map, Position start,
+        HashSet<Position> visitedBefore)
     {
-        var oldValue = map.Set(obstruction, '#');
+        HashSet<Position> visited = [];
+        Position current = start;
 
-        bool loop = false;
-        HashSet<Position> newVisited = [];
-
-        while (map.Contains(position.Point))
+        while (map.Contains(current.Point) &&
+               !visitedBefore.Contains(current) &&
+               visited.Add(current))
         {
-            if (visited.Contains(position) || !newVisited.Add(position))
-            {
-                loop = true;
-                break;
-            }
-
-            position = position.Step(map);
+            current = current.Step(map, obstruction);
         }
 
-        map.Set(obstruction, oldValue);
-
-        return loop;
+        return map.Contains(current.Point);
     }
 
-    private static IEnumerable<Position> Path(this char[][] map) =>
-        map.Path(map.FindStartingPosition());
+    private static IEnumerable<Point> GetPath(this char[][] map) =>
+        map.Walk(map.FindStartingPosition())
+            .Select(position => position.Point)
+            .Distinct();
 
-    private static IEnumerable<Position> Path(this char[][] map, Position position)
+    private static IEnumerable<Position> Walk(this char[][] map, Position start)
     {
-        while (map.Contains(position.Point))
+        for (Position pos = start; map.Contains(pos.Point); pos = pos.Step(map))
         {
-            yield return position;
-            position = position.Step(map);
+            yield return pos;
         }
     }
+
+    private static Position Step(this Position position, char[][] map, Point obstruction) =>
+        position.StepForward() is Position forward && !map.IsObstruction(forward.Point, obstruction) ? forward
+        : position.TurnRight();
 
     private static Position Step(this Position position, char[][] map) =>
         position.StepForward() is Position forward && !map.IsObstruction(forward.Point) ? forward
         : position.TurnRight();
 
-    private static Position StepForward(this Position position) =>
-        position with { Point = position.Point.Step(position.Orientation) };
+    private static bool IsObstruction(this char[][] map, Point point, Point obstruction) =>
+        map.Contains(point) && (map.At(point) == '#' || point == obstruction);
     
-    private static Position TurnRight(this Position position) =>
-        position with { Orientation = position.Orientation.TurnRight() };
-    
-    private static char TurnRight(this char orientation) =>
-        Orientations[(Orientations.IndexOf(orientation) + 1) % Orientations.Length];
-    
-    private static Point Step(this Point point, char direction) =>
-        direction switch
-        {
-            '^' => new Point(point.Row - 1, point.Column),
-            '>' => new Point(point.Row, point.Column + 1),
-            'v' => new Point(point.Row + 1, point.Column),
-            _ => new Point(point.Row, point.Column - 1)
-        };
-
     private static bool IsObstruction(this char[][] map, Point point) =>
         map.Contains(point) && map.At(point) == '#';
 
@@ -110,24 +90,37 @@ static class Day06
         point.Row >= 0 && point.Row < map.Length &&
         point.Column >= 0 && point.Column < map[point.Row].Length;
 
-    private static char Set(this char[][] map, Point point, char value)
-    {
-        char oldValue = map[point.Row][point.Column];
-        map[point.Row][point.Column] = value;
-        return oldValue;
-    }
+    private static Position StepForward(this Position position) =>
+        position with { Point = position.Point.Step(position.Orientation) };
+
+    private static Position TurnRight(this Position position) =>
+        position with { Orientation = position.Orientation.TurnRight() };
+
+    private static char TurnRight(this char orientation) =>
+        Orientations[(Orientations.IndexOf(orientation) + 1) % Orientations.Length];
+
+    private static Point Step(this Point point, char direction) =>
+        direction switch
+        {
+            '^' => new Point(point.Row - 1, point.Column),
+            '>' => new Point(point.Row, point.Column + 1),
+            'v' => new Point(point.Row + 1, point.Column),
+            _ => new Point(point.Row, point.Column - 1),
+        };
+
+    private static Position FindStartingPosition(this char[][] map) =>
+        map.AllPoints()
+            .Where(point => Orientations.Contains(map.At(point)))
+            .Select(point => new Position(point, map.At(point)))
+            .First();
+
+    private static IEnumerable<Point> AllPoints(this char[][] map) =>
+        from row in Enumerable.Range(0, map.Length)
+        from column in Enumerable.Range(0, map[row].Length)
+        select new Point(row, column);
 
     private static char At(this char[][] map, Point point) =>
         map[point.Row][point.Column];
-
-    private static Position FindStartingPosition(this char[][] map) =>
-        map.GetOrientationSigns().First();
-
-    private static IEnumerable<Position> GetOrientationSigns(this char[][] map) =>
-        from row in Enumerable.Range(0, map.Length)
-        from col in Enumerable.Range(0, map[row].Length)
-        where Orientations.Contains(map[row][col])
-        select new Position(new Point(row, col), map[row][col]);
 
     private static string Orientations = "^>v<";
 
