@@ -1,72 +1,63 @@
+using System.Diagnostics;
+
 static class Day07
 {
     public static void Run()
     {
-        List<(long target, long first, List<long> other)> equations = Console.In.ReadLists().ToList();
+        var equations = Console.In.ReadEquations().ToList();
+
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        var simpleCalibration = equations
+            .Where(eq => eq.CanProduceResult(Addition, Multiplication))
+            .Sum(eq => eq.Result);
+        stopwatch.Stop();
+
+        Stopwatch stopwatch1 = Stopwatch.StartNew();
+        var extendedCalibration = equations
+            .Where(eq => eq.CanProduceResult(Addition, Multiplication, Concatenation))
+            .Sum(eq => eq.Result);
+        stopwatch1.Stop();
         
-        long calibrationResult = equations
-            .Where(equation => equation.CanCreateTarget(Add, Multiply))
-            .Sum(equation => equation.target);
-
-        long concatCalibrationResult = equations
-            .Where(equation => equation.CanCreateTarget(Add, Multiply, Concatenate))
-            .Sum(equation => equation.target);
-
-        Console.WriteLine($"            Calibration: {calibrationResult}");
-        Console.WriteLine($"Calibration (w/ concat): {concatCalibrationResult}");
+        Console.WriteLine($" Simple calibration result: {simpleCalibration} in {stopwatch.ElapsedMilliseconds} ms");
+        Console.WriteLine($"Extended calibration result: {extendedCalibration} in {stopwatch1.ElapsedMilliseconds} ms");
     }
 
-    // Naive solution to the first part of the problem:
-    //
-    // private static bool CanCreateTarget(this (long target, long first, List<long> other) equation)
-    // {
-    //     HashSet<long> created = new() { equation.first };
-
-    //     foreach (long value in equation.other)
-    //     {
-    //         var addition = created
-    //             .Where(result => equation.target - value >= result)
-    //             .Select(result => result + value);
-    //         var multiplication = created
-    //             .Where(result => equation.target / value >= result)
-    //             .Select(result => result * value);
-
-    //         created = new(addition.Concat(multiplication));
-    //     }
-
-    //     return created.Contains(equation.target);
-    // }
-
-    private static bool CanCreateTarget(this (long target, long first, List<long> other) equation,
-                                        params Func<long, long, long, IEnumerable<long>>[] operations)
+    private static bool CanProduceResult(this Equation equation, params Operator[] operators)
     {
-        HashSet<long> created = new() { equation.first };
+        HashSet<long> produced = [ equation.Values[0] ];
 
-        foreach (long value in equation.other)
+        foreach (var value in equation.Values[1..])
         {
-            var results = created.SelectMany(result =>
-                operations.SelectMany(operation =>
-                    operation(result, value, equation.target)));
-            created = new(results);
+            var expanded = operators.SelectMany(op => op(equation, produced, value));
+            produced = [ ..expanded ];
         }
 
-        return created.Contains(equation.target);
+        return produced.Contains(equation.Result);
     }
 
-    private static IEnumerable<long> Add(long left, long right, long target) =>
-        target - left >= right ? new[] { left + right } : Enumerable.Empty<long>();
+    private delegate IEnumerable<long> Operator(Equation equation, IEnumerable<long> a, long b);
 
-    private static IEnumerable<long> Multiply(long left, long right, long target) =>
-        target / left >= right ? new[] { left * right } : Enumerable.Empty<long>();
+    private static IEnumerable<long> Addition(this Equation equation, IEnumerable<long> a, long b) =>
+        a.Where(x => equation.Result - x >= b).Select(x => x + b);
 
-    private static IEnumerable<long> Concatenate(long left, long right, long target) =>
-        long.TryParse(left.ToString() + right.ToString(), out long concatenated) &&
-        concatenated <= target
-            ? new[] { concatenated }
-            : Enumerable.Empty<long>();
+    private static IEnumerable<long> Multiplication(this Equation equation, IEnumerable<long> a, long b) =>
+        a.Where(x => equation.Result / x >= b).Select(x => x * b);
+        
+    private static IEnumerable<long> Concatenation(this Equation equation, IEnumerable<long> a, long b)
+    {
+        string bString = b.ToString();
+        foreach (long x in a)
+        {
+            string concatenated = x.ToString() + bString;
+            if (long.TryParse(concatenated, out long value) && value <= equation.Result)
+                yield return value;
+        }
+    }
 
-    private static IEnumerable<(long target, long first, List<long> other)> ReadLists(this TextReader text) =>
-        text.ReadLines()
+    private static IEnumerable<Equation> ReadEquations(this TextReader reader) =>
+        reader.ReadLines()
             .Select(Common.ParseLongsNoSign)
-            .Select(list => (list[0], list[1], list.Skip(2).ToList()));
+            .Select(values => new Equation(values[0], values[1..]));
+
+    record Equation(long Result, List<long> Values);
 }
