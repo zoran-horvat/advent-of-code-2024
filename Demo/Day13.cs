@@ -5,11 +5,14 @@ static class Day13
         var machines = Console.In.ReadMachines().ToList();
 
         long totalCost = machines.SelectMany(GetCheapestPlay).ToCost();
-        long correctedCost = machines.Select(ToCorrectedMachine).SelectMany(GetCheapestPlay).ToCost();
+        long farCost = machines.Select(ToCorrectedMachine).SelectMany(GetCheapestPlay).ToCost();
 
-        Console.WriteLine($"Total cost: {totalCost}");
-        Console.WriteLine($"Corrected cost: {correctedCost}");
+        Console.WriteLine($"    Total cost: {totalCost}");
+        Console.WriteLine($"Corrected cost: {farCost}");
     }
+
+    private static Machine ToCorrectedMachine(this Machine machine) =>
+        machine with { Prize = new(machine.Prize.X + 10000000000000, machine.Prize.Y + 10000000000000) };
 
     private static long ToCost(this IEnumerable<(long aPresses, long bPresses)> buttonPresses) =>
         buttonPresses.Sum(pair => pair.aPresses * 3 + pair.bPresses);
@@ -20,9 +23,10 @@ static class Day13
         // a * ay + b * by = py
         // --------------------
         // D = ax * by - ay * bx
-        // a = (px * by - py * bx) / D
-        // b = (ax * py - ay * px) / D
-        
+        // a = (px * by - py * bx) / D   (D != 0)
+        // b = (py * ax - px * ay) / D   (D != 0)
+        // (a.k.a. Cramer's rule)
+
         var (a, b, prize) = machine;
 
         long determinant = a.X * b.Y - a.Y * b.X;
@@ -32,7 +36,7 @@ static class Day13
         long aPresses = (prize.X * b.Y - prize.Y * b.X) / determinant;
         return machine.ToButtonPresses(aPresses);
     }
-
+    
     private static IEnumerable<(long aPresses, long bPresses)> ToButtonPresses(this Machine machine, long aPresses)
     {
         long bPresses = (machine.Prize.X - aPresses * machine.A.X) / machine.B.X;
@@ -43,30 +47,23 @@ static class Day13
         yield return (aPresses, bPresses);
     }
 
-    private static IEnumerable<Machine> ReadMachines(this TextReader text)
-    {
-        var elements = new Coordinates[3];
-        int current = 0;
+    private static IEnumerable<Machine> ReadMachines(this TextReader text) =>
+        text.ReadCoordinateTriplets()
+            .Select(coor => new Machine(coor[0], coor[1], coor[2]));
 
-        foreach (string line in text.ReadLines().Where(line => line.Length > 0))
-        {
-            elements[current++] = new(line.ParseLongsNoSign().ToPair());
-            if (current < 3) continue;
+    private static IEnumerable<Coordinates[]> ReadCoordinateTriplets(this TextReader text) =>
+        text.ReadCoordinates()
+            .Select((coor, index) => (coor, index))
+            .GroupBy(tuple => tuple.index / 3)
+            .Select(group => group.Select(tuple => tuple.coor).ToArray());
 
-            yield return new Machine(elements[0], elements[1], elements[2]);
-            current = 0;
-        }
-    }
+    private static IEnumerable<Coordinates> ReadCoordinates(this TextReader text) =>
+        text.ReadLines()
+            .Where(line => line.Length > 0)
+            .Select(Common.ParseLongsNoSign)
+            .Select(values => new Coordinates(values[0], values[1]));
 
-    private static Machine ToCorrectedMachine(this Machine machine) =>
-        machine with { Prize = new(
-            machine.Prize.X + 10000000000000,
-            machine.Prize.Y + 10000000000000) };
+    record Coordinates(long X, long Y);
 
     record Machine(Coordinates A, Coordinates B, Coordinates Prize);
-
-    record Coordinates(long X, long Y)
-    {
-        public Coordinates((long x, long y) pair) : this(pair.x, pair.y) { }
-    }
 }
