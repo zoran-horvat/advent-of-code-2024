@@ -17,7 +17,8 @@ static class Day14
         }
     }
 
-    private static IEnumerable<(List<Robot> state, int time)> GetChristmasTreeCandidates(this IEnumerable<Robot> robots, Coordinates roomSize)
+    private static IEnumerable<(List<Robot> state, int time)> GetChristmasTreeCandidates(
+        this IEnumerable<Robot> robots, Coordinates roomSize)
     {
         int time = 0;
         while (true)
@@ -37,8 +38,8 @@ static class Day14
 
     private static IEnumerable<int> GetGroupSizes(this IEnumerable<Robot> robots)
     {
-        var pending = robots.Select(robot => robot.Position).Distinct().ToHashSet();
-        
+        var pending = robots.Select(robot => robot.Position).ToHashSet();
+
         while (pending.Count > 0)
         {
             var pivot = pending.First();
@@ -48,47 +49,40 @@ static class Day14
             add.Enqueue(pivot);
 
             int groupSize = 0;
-
             while (add.Count > 0)
             {
                 var current = add.Dequeue();
                 groupSize += 1;
 
-                var neighbors = new[]
-                {
-                    current with { X = current.X - 1 }, current with { X = current.X + 1 },
-                    current with { Y = current.Y - 1 }, current with { Y = current.Y + 1 }
-                };
-
+                var neighbors = new[] { current with { X = current.X - 1 }, current with { X = current.X + 1 }, current with { Y = current.Y - 1 }, current with { Y = current.Y + 1 }};
                 foreach (var next in neighbors.Where(pending.Contains))
                 {
                     pending.Remove(next);
                     add.Enqueue(next);
                 }
             }
-
             yield return groupSize;
         }
     }
 
     private static void Print(this IEnumerable<Robot> robots, int time, Coordinates roomSize)
     {
-        char[][] map = Enumerable.Range(0, roomSize.Y).Select(_ => Enumerable.Repeat('.', roomSize.X).ToArray()).ToArray();
+        char[][] map = Enumerable.Range(0, roomSize.Y)
+            .Select(_ => Enumerable.Repeat('.', roomSize.X).ToArray()).ToArray();
         robots.ToList().ForEach(robot => map[robot.Position.Y][robot.Position.X] = '#');
 
         Console.WriteLine();
         Console.WriteLine($"Time: {time}");
-        map.ToList().ForEach(row => Console.WriteLine(new string(row)));
+        map.Select(row => new string(row)).ToList().ForEach(Console.WriteLine);
     }
 
     private static int GetSafetyFactor(this IEnumerable<Robot> robots, Coordinates roomSize) =>
         robots.ToQuadrantCounts(roomSize).Aggregate(1, (safety, quadrant) => safety * quadrant.count);
 
-    private static IEnumerable<(int quadrant, int count)> ToQuadrantCounts(this IEnumerable<Robot> robots, Coordinates roomSize) =>
-        robots.Select(robot => (quadrant: robot.ToQuadrant(roomSize), count: 1))
-            .Concat<(int quadrant, int count)>([(1, 0), (2, 0), (3, 0), (4, 0)])
-            .Where(pair => pair.quadrant != 0)
-            .GroupBy(pair => pair.quadrant, (quadrant, group) => (quadrant, count: group.Sum(pair => pair.count)));
+    private static IEnumerable<(int quadrant, int count)> ToQuadrantCounts(
+        this IEnumerable<Robot> robots, Coordinates roomSize) =>
+        robots.CountBy(robot => robot.ToQuadrant(roomSize))     // .NET 9
+            .Select(count => (count.Key, count.Value));
 
     private static int ToQuadrant(this Robot robot, Coordinates roomSize) =>
         robot.Position.X > roomSize.X / 2 && robot.Position.Y < roomSize.Y / 2 ? 1
@@ -99,21 +93,22 @@ static class Day14
 
     private static IEnumerable<Robot> Move(this IEnumerable<Robot> robots, int time, Coordinates roomSize) =>
         robots.Select(robot => robot.Move(time, roomSize));
-
-    private static Robot Move(this Robot robot, int time, Coordinates roomSize) => 
+    
+    private static Robot Move(this Robot robot, int time, Coordinates roomSize) =>
         robot with { Position = robot.Position.Move(robot.Velocity, time, roomSize) };
-
+    
     private static Coordinates Move(this Coordinates position, Coordinates velocity, int time, Coordinates roomSize) =>
         new(position.X.Move(velocity.X, time, roomSize.X), position.Y.Move(velocity.Y, time, roomSize.Y));
-
+    
     private static int Move(this int position, int velocity, int time, int roomSize) =>
         ((position + velocity * time) % roomSize + roomSize) % roomSize;
 
     private static IEnumerable<Robot> ReadRobots(this TextReader text) =>
-        text.ReadLines().Select(line => line.ParseInts())
+        text.ReadLines()
+            .Select(Common.ParseInts)
             .Select(list => new Robot(new(list[0], list[1]), new(list[2], list[3])));
 
-    record Robot(Coordinates Position, Coordinates Velocity);
-
     record Coordinates(int X, int Y);
+
+    record Robot(Coordinates Position, Coordinates Velocity);
 }
