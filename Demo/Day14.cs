@@ -49,18 +49,14 @@ static class Day14
             add.Enqueue(pivot);
 
             int groupSize = 0;
-            while (add.Count > 0)
+            while (add.TryDequeue(out var current))
             {
-                var current = add.Dequeue();
                 groupSize += 1;
 
                 var neighbors = new[] { current with { X = current.X - 1 }, current with { X = current.X + 1 }, current with { Y = current.Y - 1 }, current with { Y = current.Y + 1 }};
-                foreach (var next in neighbors.Where(pending.Contains))
-                {
-                    pending.Remove(next);
-                    add.Enqueue(next);
-                }
+                foreach (var next in neighbors.Where(pending.Remove)) add.Enqueue(next);
             }
+
             yield return groupSize;
         }
     }
@@ -80,12 +76,13 @@ static class Day14
         robots.ToQuadrantCounts(roomSize).Aggregate(1, (safety, count) => safety * count);
 
     private static IEnumerable<int> ToQuadrantCounts(
-        this IEnumerable<Robot> robots, Coordinates roomSize) =>
-        robots
-            .Select(robot => robot.ToQuadrant(roomSize))
-            .Where(quadrant => quadrant.horizontal != 0 && quadrant.vertical != 0)
-            .CountBy(quadrant => quadrant)     // .NET 9
-            .Select(count => count.Value);
+        this IEnumerable<Robot> robots, Coordinates roomSize) => new[]
+        {
+            robots.Count(robot => robot.ToQuadrant(roomSize) == (1, 1)),
+            robots.Count(robot => robot.ToQuadrant(roomSize) == (1, -1)),
+            robots.Count(robot => robot.ToQuadrant(roomSize) == (-1, 1)),
+            robots.Count(robot => robot.ToQuadrant(roomSize) == (-1, -1))
+        };
 
     private static (int horizontal, int vertical) ToQuadrant(this Robot robot, Coordinates roomSize) =>
         (Math.Sign(robot.Position.X - roomSize.X / 2), Math.Sign(robot.Position.Y - roomSize.Y / 2));
