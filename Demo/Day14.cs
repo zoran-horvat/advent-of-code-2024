@@ -77,19 +77,18 @@ static class Day14
     }
 
     private static int GetSafetyFactor(this IEnumerable<Robot> robots, Coordinates roomSize) =>
-        robots.ToQuadrantCounts(roomSize).Aggregate(1, (safety, quadrant) => safety * quadrant.count);
+        robots.ToQuadrantCounts(roomSize).Aggregate(1, (safety, count) => safety * count);
 
-    private static IEnumerable<(int quadrant, int count)> ToQuadrantCounts(
+    private static IEnumerable<int> ToQuadrantCounts(
         this IEnumerable<Robot> robots, Coordinates roomSize) =>
-        robots.CountBy(robot => robot.ToQuadrant(roomSize))     // .NET 9
-            .Select(count => (count.Key, count.Value));
+        robots
+            .Select(robot => robot.ToQuadrant(roomSize))
+            .Where(quadrant => quadrant.horizontal != 0 && quadrant.vertical != 0)
+            .CountBy(quadrant => quadrant)     // .NET 9
+            .Select(count => count.Value);
 
-    private static int ToQuadrant(this Robot robot, Coordinates roomSize) =>
-        robot.Position.X > roomSize.X / 2 && robot.Position.Y < roomSize.Y / 2 ? 1
-        : robot.Position.X < roomSize.X / 2 && robot.Position.Y < roomSize.Y / 2 ? 2
-        : robot.Position.X < roomSize.X / 2 && robot.Position.Y > roomSize.Y / 2 ? 3
-        : robot.Position.X > roomSize.X / 2 && robot.Position.Y > roomSize.Y / 2 ? 4
-        : 0;
+    private static (int horizontal, int vertical) ToQuadrant(this Robot robot, Coordinates roomSize) =>
+        (Math.Sign(robot.Position.X - roomSize.X / 2), Math.Sign(robot.Position.Y - roomSize.Y / 2));
 
     private static IEnumerable<Robot> Move(this IEnumerable<Robot> robots, int time, Coordinates roomSize) =>
         robots.Select(robot => robot.Move(time, roomSize));
