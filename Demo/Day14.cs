@@ -16,13 +16,16 @@ static class Day14
             if (Console.ReadLine()?.ToLower() == "n") break;
         }
     }
+
     private static IEnumerable<(List<Robot> state, int time)> GetChristmasTreeCandidates(
         this IEnumerable<Robot> robots, Coordinates roomSize) =>
         Enumerable.Range(0, int.MaxValue)
             .Where(time => robots.Move(time, roomSize).MaybeChristmasTree())
             .Select(time => (robots.Move(time, roomSize).ToList(), time));
+
     private static bool MaybeChristmasTree(this IEnumerable<Robot> robots) =>
         robots.GetGroupSizes().Max() >= robots.Count() / 3;
+
     private static IEnumerable<int> GetGroupSizes(this IEnumerable<Robot> robots)
     {
         var pending = robots.Select(robot => robot.Position).ToHashSet();
