@@ -9,7 +9,7 @@ static class Day15
 
         Stopwatch stopwatch = Stopwatch.StartNew();
         var totalGps = state.Apply(steps).Boxes.Index.Values.Sum(GetGps);
-        var scaledGps = state.Scale().Apply(steps).Boxes.Index.Values.Sum(GetGps) / 2;
+        var scaledGps = state.Scale().Apply(steps).Boxes.Index.Values.Distinct().Sum(GetGps);
         stopwatch.Stop();
 
         Console.WriteLine($" Total GPS: {totalGps}");
@@ -73,6 +73,47 @@ static class Day15
 
     private static State ReadState(this TextReader reader) =>
         reader.ReadMap().ToState();
+
+    private static char[][] ToMap(this State state)
+    {
+        int rows = state.Walls.Max(wall => wall.Row) + 1;
+        int columns = state.Walls.Max(wall => wall.Column) + 1;
+        var map = new char[rows][];
+        for (int i = 0; i < rows; i++)
+        {
+            map[i] = new char[columns];
+            Array.Fill(map[i], ' ');
+        }
+
+        map[state.Robot.Row][state.Robot.Column] = '@';
+
+        foreach (var box in state.Boxes.Index.Values)
+        {
+            if (box.Size == 1)
+            {
+                map[box.Position.Row][box.Position.Column] = 'O';
+                continue;
+            }
+
+            map[box.Position.Row][box.Position.Column] = '[';
+            map[box.Position.Row][box.Position.Column + box.Size - 1] = ']';
+        }
+
+        foreach (var wall in state.Walls)
+        {
+            map[wall.Row][wall.Column] = '#';
+        }
+
+        return map;
+    }
+
+    private static void Print(this char[][] map)
+    {
+        foreach (var row in map)
+        {
+            Console.WriteLine(new string(row));
+        }
+    }
 
     private static State ToState(this char[][] map) =>
         new(map.FindRobot(), map.FindBoxes().ToBoxes(), map.FindWalls().ToHashSet());
