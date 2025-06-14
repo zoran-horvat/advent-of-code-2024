@@ -1,68 +1,58 @@
-using System.Drawing;
-
 static class Day18
 {
     public static void Run()
     {
-        var fallingBytes = Console.In.ReadPoints();
+        var fallingBytes = Console.In.ReadPoints().ToList();
         int width = 71;
         int height = 71;
         int startTime = 1024;
 
-        var maze = fallingBytes.ToMaze(width, height, startTime);
+        var maze = fallingBytes.Take(startTime).ToMaze(width, height);
 
-        int? quickestExit = maze.GetShortestPathOut();
-        Console.WriteLine($"Quickest exit: {(quickestExit.HasValue ? quickestExit.ToString() : "No exit found")}");
+        var shortestPath = maze.GetShortestPathOut();
+        var culprit = FindCulprit(fallingBytes, width, height);
 
-        var culprit = FindCulprit(fallingBytes, width, height, startTime);
+        if (shortestPath.HasValue) Console.WriteLine($"Shortest path out: {shortestPath.Value} steps");
+        else Console.WriteLine("No path out found");
 
-        if (culprit is null) Console.WriteLine("No culprit found");
-        else Console.WriteLine($"Culprit: ({culprit.X}, {culprit.Y})");
+        if (culprit is not null) Console.WriteLine($"Culprit byte at {culprit.X}, {culprit.Y}");
+        else Console.WriteLine("No culprit found");
     }
 
-    private static Point? FindCulprit(this List<Point> fallingBytes, int width, int height, int startTime)
+    private static Point? FindCulprit(this List<Point> fallingBytes, int width, int height)
     {
-        int fallWithPassage = startTime;
-        int fallWithNoPassage = fallingBytes.Count;
+        int withPassage = 0;
+        int noPassage = fallingBytes.Count;
 
-        if (!fallingBytes.PathExists(width, height, fallWithPassage)) return null;
-        if (fallingBytes.PathExists(width, height, fallWithNoPassage)) return null;
-
-        while (fallWithNoPassage - fallWithPassage > 1)
+        while (noPassage - withPassage > 1)
         {
-            int atTime = (fallWithPassage + fallWithNoPassage) / 2;
-            if (fallingBytes.PathExists(width, height, atTime)) fallWithPassage = atTime;
-            else fallWithNoPassage = atTime;
+            int atTime = (withPassage + noPassage) / 2;
+            if (fallingBytes.Take(atTime).ToMaze(width, height).PathExists()) withPassage = atTime;
+            else noPassage = atTime;
         }
 
-        if (fallWithNoPassage == fallWithPassage + 1) return fallingBytes[fallWithNoPassage - 1];
-        return null;
+        return fallingBytes[noPassage - 1];
     }
 
-    private static bool PathExists(this IEnumerable<Point> fallingBytes, int width, int height, int atTime) =>
-        fallingBytes.ToMaze(width, height, atTime).PathExists();
-
-    private static bool PathExists(this Maze maze) => maze.GetShortestPathOut() is not null;
+    private static bool PathExists(this Maze maze) =>
+        maze.GetShortestPathOut() is not null;
 
     private static int? GetShortestPathOut(this Maze maze)
     {
         var start = maze.GetStart();
+        var end = maze.GetEnd();
 
-        var queue = new PriorityQueue<(Point point, int steps), int>([ ((start, 0), 0) ]);
+        var queue = new PriorityQueue<Point, int>([(start, 0)]);
         var visited = new HashSet<Point>();
 
-        while (queue.Count > 0)
+        while (queue.TryDequeue(out var current, out var steps))
         {
-            var (point, steps) = queue.Dequeue();
+            if (!visited.Add(current)) continue;
+            if (current == end) return steps;
 
-            if (visited.Contains(point)) continue;
-            visited.Add(point);
-
-            if (maze.IsEnd(point)) return steps;
-
-            foreach (var neighbor in maze.GetNeighbors(point))
+            foreach (var neighbor in maze.GetNeighbors(current))
             {
-                queue.Enqueue((neighbor, steps + 1), steps + 1);
+                queue.Enqueue(neighbor, steps + 1);
             }
         }
 
@@ -75,30 +65,29 @@ static class Day18
             new Point(point.X - 1, point.Y), new Point(point.X + 1, point.Y),
             new Point(point.X, point.Y - 1), new Point(point.X, point.Y + 1)
         }
-        .Where(neighbor => maze.IsAvailable(neighbor));
+        .Where(maze.IsAvailable);
 
     private static bool IsAvailable(this Maze maze, Point point) =>
-        maze.IsInside(point) && !maze.Obstacles.Contains(point);
+        maze.Contains(point) && !maze.Obstacles.Contains(point);
 
-    private static bool IsEnd(this Maze maze, Point point) => point == maze.GetEnd();
-
-    private static bool IsInside(this Maze maze, Point point) =>
+    private static bool Contains(this Maze maze, Point point) =>
         point.X >= 0 && point.X < maze.Width && point.Y >= 0 && point.Y < maze.Height;
 
-    private static Point GetStart(this Maze maze) => new Point(0, 0);
+    private static Point GetStart(this Maze maze) =>
+        new Point(0, 0);
 
-    private static Point GetEnd(this Maze maze) => new Point(maze.Width - 1, maze.Height - 1);
+    private static Point GetEnd(this Maze maze) =>
+        new Point(maze.Width - 1, maze.Height - 1);
 
-    private static Maze ToMaze(this IEnumerable<Point> obstacles, int width, int height, int atTime) =>
-        new Maze(width, height, obstacles.Take(atTime).ToHashSet());
+    private static Maze ToMaze(this IEnumerable<Point> obstacles, int width, int height) =>
+        new Maze(width, height, obstacles.ToHashSet());
 
-    record Maze(int Width, int Height, HashSet<Point> Obstacles);
-    
-    record Point(int X, int Y);
-
-    private static List<Point> ReadPoints(this TextReader text) =>
+    private static IEnumerable<Point> ReadPoints(this TextReader text) =>
         text.ReadLines()
             .Select(Common.ParseIntsNoSign)
-            .Select(line => new Point(line[0], line[1]))
-            .ToList();
+            .Select(line => new Point(line[0], line[1]));
+
+    record Maze(int Width, int Height, HashSet<Point> Obstacles);
+
+    record Point(int X, int Y);
 }
