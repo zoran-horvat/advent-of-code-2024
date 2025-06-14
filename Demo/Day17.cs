@@ -4,12 +4,12 @@ static class Day17
     {
         var machine = Console.In.ReadMachine();
 
-        Console.WriteLine();
-        machine.Print();
-        Console.WriteLine();
-
-        var output = machine.Run().ToArray();
+        var output = string.Join(",", machine.Run());
         long seed = machine.FindSelfReplicatingSeeds(0).Min();
+
+        Console.WriteLine();
+        machine.PrlongProgram();
+        Console.WriteLine();
 
         Console.WriteLine($"               Output: {string.Join(",", output)}");
         Console.WriteLine($"Self-replicating seed: {seed}");
@@ -21,6 +21,9 @@ static class Day17
             .SelectMany(ExtendSeed)
             .Where(seed => machine.Run(seed).SequenceEqual(machine.Memory[offset..]));
 
+    private static IEnumerable<byte> Run(this Machine machine, long seed) =>
+        (machine with { A = seed, B = 0, C = 0, IP = 0 }).Run();
+
     private static IEnumerable<long> ExtendSeed(long seed) =>
         Enumerable.Range(0, 8).Select(lower => (seed << 3) | (long)lower);
 
@@ -28,141 +31,96 @@ static class Day17
         offset == machine.Memory.Length - 1 ? [0]
         : machine.FindSelfReplicatingSeeds(offset + 1).ToArray();
 
-    private static IEnumerable<byte> Run(this Machine machine, long seed) =>
-        (machine with { A = seed, B = 0, C = 0, IP = 0 }).Run();
+    private static void PrlongProgram(this Machine machine) =>
+        Enumerable.Range(0, machine.Memory.Length / 2)
+            .Select(i => machine with { IP = 2 * i })
+            .Select(ToPrlongableInstruction)
+            .ToList()
+            .ForEach(Console.WriteLine);
 
-    private static long? FindSelfReplicatingSeed(this Machine machine, long seed, int outputPosition, int stepShift)
-    {
-        for (int i = 0; i < 1 << stepShift; i++)
+    private static string ToPrlongableInstruction(this Machine machine) =>
+        (machine.Memory[machine.IP], machine.Memory[machine.IP + 1]) switch
         {
-            var candidate = (seed << stepShift) | (long)i;
-            var output = (machine with { A = candidate }).Run().ToArray();
-
-            if (!Enumerable.SequenceEqual(output, machine.Memory[outputPosition..])) continue;
-
-            if (outputPosition == 0) return candidate;
-
-            var solution = FindSelfReplicatingSeed(machine, candidate, outputPosition - 1, stepShift);
-            if (solution.HasValue) return solution;
-        }
-
-        return null;
-    }
-
-    private static void Print(this Machine machine) =>
-        machine.GetProgram().Select(ToPrintable).ToList().ForEach(Console.WriteLine);
-
-    private static IEnumerable<Instruction> GetProgram(this Machine machine)
-    {
-        while (true)
-        {
-            (var instruction, machine) = machine.GetNextInstruction();
-            if (instruction is null) yield break;
-            yield return instruction;
-        }
-    }
-
-    private static string ToPrintable(this Instruction instruction) =>
-        instruction.Opcode switch
-        {
-            0 => $"A <- A >> {instruction.Operand.ToPrintableCombo()}",
-            1 => $"B <- B XOR {instruction.Operand}",
-            2 => $"B <- {instruction.Operand.ToPrintableCombo()} MOD 8",
-            3 => $"IP <- {instruction.Operand} (IF A = 0)",
-            4 => "B <- B XOR C",
-            5 => $"Output {instruction.Operand.ToPrintableCombo()} MOD 8",
-            6 => $"B <- A >> {instruction.Operand.ToPrintableCombo()}",
-            7 => $"C <- A >> {instruction.Operand.ToPrintableCombo()}",
-            _ => throw new InvalidOperationException("Invalid opcode")
+            (0, byte op) => $"A <- A >> {op.ToPrlongable()}",
+            (1, byte op) => $"B <- B XOR {op}",
+            (2, byte op) => $"B <- {op} AND 7",
+            (3, byte op) => $"IP <- {op} (IF A = 0)",
+            (4, _) => "B <- B XOR C",
+            (5, byte op) => $"OUT {op.ToPrlongable()}",
+            (6, byte op) => $"B <- A >> {op.ToPrlongable()}",
+            (7, byte op) => $"C <- A >> {op.ToPrlongable()}",
+            _ => throw new InvalidOperationException("Invalid instruction")
         };
 
-    private static string ToPrintableCombo(this byte operand) =>
-        operand switch
+    private static string ToPrlongable(this byte combo) =>
+        combo switch
         {
-            <= 3 => $"{operand}",
+            <= 3 => $"{combo}",
             4 => "A",
             5 => "B",
-            6 => "C",
-            _ => throw new InvalidOperationException("Invalid combo")
+            _ => "C"
         };
 
     private static IEnumerable<byte> Run(this Machine machine)
     {
-        while (true)
+        while (machine.IP < machine.Memory.Length)
         {
-            (var instruction, machine) = machine.GetNextInstruction();
-            if (instruction is null) yield break;
-
-            var operand = instruction.ResolveOperand(machine);
-
-            (var output, machine) = instruction.Execute(machine);
+            (var output, machine) = machine.Step();
             if (output.HasValue) yield return output.Value;
         }
     }
 
-    private static (byte? output, Machine machine) Execute(this Instruction instruction, Machine machine) =>
-        (instruction.Opcode, instruction.ResolveOperand(machine)) switch
+    private static (byte? output, Machine machine) Step(this Machine m) =>
+        m.FetchInstruction() switch
         {
-            (0, long op) => (null, machine with { A = machine.A >> (int)op }),
-            (1, long op) => (null, machine with { B = machine.B ^ op }),
-            (2, long op) => (null, machine with { B = op & 0x7 }),
-            (3, long op) => (null, machine.A == 0 ? machine : machine with { IP = (int)op }),
-            (4, _) => (null, machine with { B = machine.B ^ machine.C }),
-            (5, long op) => ((byte)(op & 0x7), machine),
-            (6, long op) => (null, machine with { B = machine.A >> (int)op }),
-            (7, long op) => (null, machine with { C = machine.A >> (int)op }),
+            (0, long op) => (null, m with { A = m.A >> (int)op, IP = m.IP + 2 }),
+            (1, long op) => (null, m with { B = m.B ^ op, IP = m.IP + 2 }),
+            (2, long op) => (null, m with { B = op & 0x7, IP = m.IP + 2 }),
+            (3, long op) => (null, m with { IP = m.A == 0 ? m.IP + 2 : op }),
+            (4, _) => (null, m with { B = m.B ^ m.C, IP = m.IP + 2 }),
+            (5, long op) => ((byte)(op & 0x7), m with { IP = m.IP + 2 }),
+            (6, long op) => (null, m with { B = m.A >> (int)op, IP = m.IP + 2 }),
+            (7, long op) => (null, m with { C = m.A >> (int)op, IP = m.IP + 2 }),
             _ => throw new InvalidOperationException("Invalid opcode")
         };
 
-    private static long ResolveOperand(this Instruction instruction, Machine machine) =>
-        instruction.Opcode == 4 ? 0
-        : instruction.Opcode == 1 || instruction.Opcode == 3 ? (int)instruction.Operand
-        : instruction.ResolveCombo(machine);
+    private static (long opcode, long operand) FetchInstruction(this Machine machine) =>
+        (machine.GetOpcode(), machine.GetOperand());
 
-    private static long ResolveCombo(this Instruction instruction, Machine machine) =>
-        instruction.Operand switch
+    private static long GetOpcode(this Machine machine) =>
+        machine.Memory[machine.IP];
+
+    private static long GetOperand(this Machine machine) =>
+        (machine.GetOpcode(), machine.Memory[machine.IP + 1]) switch
         {
-            <= 3 => (int)instruction.Operand,
-            4 => machine.A,
-            5 => machine.B,
-            6 => machine.C,
-            _ => throw new InvalidOperationException("Invalid combo")
+            (1, byte operand) => operand,
+            (3, byte operand) => operand,
+            (4, _) => 0,
+            (_, byte operand) when operand <= 3 => operand,
+            (_, 4) => machine.A,
+            (_, 5) => machine.B,
+            (_, 6) => machine.C,
+            _ => throw new InvalidOperationException("Invalid operand"),
         };
 
-    private static (Instruction? instruction, Machine machine) GetNextInstruction(this Machine machine) =>
-        machine.IP >= machine.Memory.Length ? (null, machine)
-        : (machine.FetchInstruction(), machine.AdvanceIP()); 
-
-    private static Instruction FetchInstruction(this Machine machine) =>
-        new(machine.Memory[machine.IP], machine.Memory[machine.IP + 1]);
-    
-    private static Machine AdvanceIP(this Machine machine) =>
-        machine with { IP = machine.IP + 2 };
-
-    private static IEnumerable<(string field, int[] values)> ParseInput(this TextReader text) =>
+    private static IEnumerable<(string field, long[] values)> ParseInput(this TextReader text) =>
         text.ReadLines()
             .Select(line => line.Split(": "))
             .Where(parts => parts.Length == 2)
             .Select(parts => (
                 field: parts[0],
-                values: parts[1].Split(',').Select(int.Parse).ToArray()));
+                values: parts[1].Split(',').Select(long.Parse).ToArray()));
 
     private static Machine ReadMachine(this TextReader text) =>
         text.ParseInput().Aggregate(
             new Machine(0, 0, 0, 0, Array.Empty<byte>()),
-            (machine, fieldValues) =>
+            (machine, fields) => fields.field switch
             {
-                return fieldValues.field switch
-                {
-                    "Register A" => machine with { A = fieldValues.values[0] },
-                    "Register B" => machine with { B = fieldValues.values[0] },
-                    "Register C" => machine with { C = fieldValues.values[0] },
-                    _ => machine with { Memory = fieldValues.values.Select(v => (byte)v).ToArray() },
-                };
-            }
-        );
+                "Register A" => machine with { A = fields.values[0] },
+                "Register B" => machine with { B = fields.values[0] },
+                "Register C" => machine with { C = fields.values[0] },
+                _ => machine with { Memory = fields.values.Select(v => (byte)v).ToArray() },
+            });
 
-    record Machine(long A, long B, long C, int IP, byte[] Memory);
-    
-    record Instruction(byte Opcode, byte Operand);
+    record Machine(long A, long B, long C, long IP, byte[] Memory);
 }
