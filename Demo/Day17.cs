@@ -22,7 +22,7 @@ static class Day17
             .Where(seed => machine.Run(seed).SequenceEqual(machine.Memory[offset..]));
 
     private static IEnumerable<byte> Run(this Machine machine, long seed) =>
-        (machine with { A = seed, B = 0, C = 0, IP = 0 }).Run();
+        (machine with { A = seed }).Run();
 
     private static IEnumerable<long> ExtendSeed(long seed) =>
         Enumerable.Range(0, 8).Select(lower => (seed << 3) | (long)lower);
@@ -31,14 +31,14 @@ static class Day17
         offset == machine.Memory.Length - 1 ? [0]
         : machine.FindSelfReplicatingSeeds(offset + 1).ToArray();
 
-    private static void PrlongProgram(this Machine machine) =>
+    private static void PrintProgram(this Machine machine) =>
         Enumerable.Range(0, machine.Memory.Length / 2)
             .Select(i => machine with { IP = 2 * i })
-            .Select(ToPrlongableInstruction)
+            .Select(ToPrintableInstruction)
             .ToList()
             .ForEach(Console.WriteLine);
 
-    private static string ToPrlongableInstruction(this Machine machine) =>
+    private static string ToPrintableInstruction(this Machine machine) =>
         (machine.Memory[machine.IP], machine.Memory[machine.IP + 1]) switch
         {
             (0, byte op) => $"A <- A >> {op.ToPrlongable()}",
