@@ -8,7 +8,7 @@ static class Day17
         long seed = machine.FindSelfReplicatingSeeds(0).Min();
 
         Console.WriteLine();
-        machine.PrlongProgram();
+        machine.PrintProgram();
         Console.WriteLine();
 
         Console.WriteLine($"               Output: {string.Join(",", output)}");
