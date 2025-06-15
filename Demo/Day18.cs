@@ -15,11 +15,10 @@ static class Day18
         if (shortestPath.HasValue) Console.WriteLine($"Shortest path out: {shortestPath.Value} steps");
         else Console.WriteLine("No path out found");
 
-        if (culprit is not null) Console.WriteLine($"Culprit byte at {culprit.X}, {culprit.Y}");
-        else Console.WriteLine("No culprit found");
+        Console.WriteLine($"Culprit byte at {culprit.X}, {culprit.Y}");
     }
 
-    private static Point? FindCulprit(this List<Point> fallingBytes, int width, int height)
+    private static Point FindCulprit(this List<Point> fallingBytes, int width, int height)
     {
         int withPassage = 0;
         int noPassage = fallingBytes.Count;
