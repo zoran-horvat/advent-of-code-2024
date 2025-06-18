@@ -16,28 +16,15 @@ static class Day02
         new[] {values}.Concat(Enumerable.Range(0, values.Count).Select(i => values.ExceptAt(i)));
 
     private static bool IsSafe(this List<int> values) =>
-        values.Count < 2 || values.IsSafe(Math.Sign(values[1] - values[0]));
+        Enumerable.Range(0, values.Count - 1).All(values.IsSafeAt);
 
-    private static bool IsSafe(this List<int> values, int diffSign) =>
-        values.ToPairs().All(pair => pair.IsSafe(diffSign));
+    private static bool IsSafeAt(this List<int> values, int index) =>
+        values[index] != values[index + 1] &&
+        Math.Abs(values[index] - values[index + 1]) <= 3 &&
+        (index == 0 || values.SlopeAt(index) == values.SlopeAt(index - 1));
 
-    private static IEnumerable<(int prev, int next)> ToPairs(this List<int> values)
-    {
-        using var enumerator = values.GetEnumerator();
-        if (!enumerator.MoveNext()) yield break;
-
-        int prev = enumerator.Current;
-        while (enumerator.MoveNext())
-        {
-            yield return (prev, enumerator.Current);
-            prev = enumerator.Current;
-        }
-    }
-
-    private static bool IsSafe(this (int a, int b) pair, int diffSign) =>
-        Math.Abs(pair.b - pair.a) >= 1 &&
-        Math.Abs(pair.b - pair.a) <= 3 &&
-        Math.Sign(pair.b - pair.a) == diffSign;
+    private static int SlopeAt(this List<int> values, int index) =>
+        Math.Sign(values[index + 1] - values[index]);
 
     private static List<int> ExceptAt(this List<int> values, int index) =>
         values.Take(index).Concat(values.Skip(index + 1)).ToList();
